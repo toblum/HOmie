@@ -108,6 +108,19 @@ describe('classifyMonthDays', () => {
     )
   })
 
+  it('keeps working-day unchanged when override is applied without non-working reasons', () => {
+    const result = classifyMonthDays({
+      month: '2026-01',
+      federalState: 'BY',
+      excludedDays: [],
+      overrides: ['2026-01-07'],
+    })
+
+    const day = result.find((entry) => entry.date === '2026-01-07')
+    expect(day?.kind).toBe('working-day')
+    expect(day?.nonWorkingReasons).toEqual([])
+  })
+
   it('fails explicitly for invalid month input', () => {
     expect(() =>
       classifyMonthDays({
