@@ -2,41 +2,45 @@
 
 ## Zielbild
 
-HOmie ist eine lokale Desktop-App zur einfachen Planung und Erfassung von Home-Office-, Büro- und Abwesenheitstagen. Die App richtet sich an eine einzelne Person im Team-Kontext und soll vor allem zwei Dinge sehr gut können:
+HOmie ist eine lokale Webanwendung zur einfachen Planung und Erfassung von Home-Office-, Büro- und Abwesenheitstagen. Die App richtet sich an eine einzelne Person im Team-Kontext und soll vor allem zwei Dinge sehr gut können:
 
 1. **Tage extrem schnell erfassen**
 2. **den Monatsstatus verständlich und vertrauenswürdig anzeigen**
 
-Die App speichert **alle Nutzdaten lokal in genau einer Datei** neben der ausgelieferten Anwendung, arbeitet **ohne Cloud und ohne Benutzerkonto** und soll als **portable Desktop-App** zuerst für Windows, später mit derselben Codebasis auch für macOS und Linux baubar sein.
+Die App speichert **alle Nutzdaten lokal im Browser des Nutzers** (IndexedDB), arbeitet **ohne Cloud und ohne Benutzerkonto** und ist als **statische Webanwendung** auf GitHub Pages deploybar – für jeden Nutzer kostenlos und ohne Server-Betrieb zugänglich.
 
 ---
 
 ## Empfohlene technische Umsetzung
 
-### Primäre Wahl: Electron + React + TypeScript
+### Primäre Wahl: React + TypeScript + Vite (statische Web-App)
 
-Ich empfehle für HOmie:
+Für HOmie wird gewählt:
 
-- **Electron** als Desktop-Shell
 - **React** für die Oberfläche
 - **TypeScript** im gesamten Applikationscode
-- **Vite** für schnellen Frontend-Build
+- **Vite** für schnellen Frontend-Build und statischen Output
 - **date-fns** für Datumslogik
 - **date-holidays** für gesetzliche Feiertage nach Bundesland
-- **Zustand** oder ein ähnlich leichtgewichtiges State-Management
-- **JSON-Datei** als einziges lokales Datenspeicherformat
+- **Zustand** als leichtgewichtiges State-Management
+- **idb** als typsicherer IndexedDB-Wrapper für browser-lokale Datenhaltung
+- **GitHub Pages** als statischer Hosting-Zielort
 
 ### Warum diese Wahl
 
+- **keine native OS-Integration notwendig** – alle Kernfunktionen laufen vollständig im Browser
+- **kein Server-Betrieb** – statischer Build, direkt deploybar
 - **nahezu vollständig TypeScript-basiert**
-- **sehr gute Unterstützung für Tray, Autostart und portable Builds**
-- **realistisch von einem Agenten alleine umsetzbar und testbar**
-- **Cross-Plattform mit derselben Codebasis**
-- **schnelle UI-Iteration für eine stark UX-getriebene Anwendung**
+- **IndexedDB bietet ausreichend Kapazität** für Jahre an Tageseinträgen
+- **einfache Portierung** zwischen Geräten via JSON-Export und Restore
 
-### Bewusst nicht gewählt: Tauri
+### Bewusst nicht gewählt: Electron/Desktop
 
-Tauri wäre bei Dateigröße und Ressourcenverbrauch attraktiver, bringt aber für diese erste Version zusätzlichen Rust-Aufwand in Build, Debugging und OS-Integration. Für ein kleines internes Tool mit Fokus auf schneller Umsetzung, reiner TypeScript-Entwicklung und einfacher Wartung ist **Electron hier der pragmatischere Start**.
+Electron ermöglicht Tray, Autostart und OS-Notifications. Da diese Features in v1 nicht benötigt werden und ein Web-Deploy einfacher zu warten und zugänglich ist, wird Electron fallen gelassen. Tauri teilt die gleiche Abwägung.
+
+### Bewusst nicht gewählt: Backend / Cloud-Sync
+
+Single-User, datenschutzfreundlich, keine externe Abhängigkeit. Portabilität über Export und Restore statt Sync (→ ADR-0002).
 
 ---
 
@@ -183,36 +187,41 @@ Später sinnvoll, aber nicht zwingend für den ersten Schnitt:
 
 ### Speichermodell
 
-Alle App-Daten werden in **einer einzigen JSON-Datei** gespeichert, zum Beispiel:
+Alle App-Daten werden in der **IndexedDB des Browsers** des Nutzers gespeichert. Es gibt keinen Server, keine Cloud und kein Benutzerkonto.
 
-`HOmie.data.json`
+Datenbankname: `HOmie`
 
-Speicherort im produktiven Portable-Betrieb:
+Stores:
+- `entries` — Tageseinträge, Key: ISO-Datum (`YYYY-MM-DD`)
+- `policyHistory` — Regelverlauf (Quote und Bundesland), Key: Wirksamkeitsmonat
+- `preferences` — Persönliche Einstellungen (Sprache, Theme, Warnschwelle)
 
-- **direkt neben der ausführbaren Datei**
+### Portabilität
 
-Vorteile:
+Da kein Dateisystem zugänglich ist, erfolgt die Portabilität ausschließlich über:
 
-- leicht zu sichern
-- leicht zu übertragen
-- transparent
-- kein zusätzlicher Dienst, keine Datenbankinstallation
+- **JSON-Export** (vollständiges Backup/Restore-Format)
+- **CSV-Export** (maschinenlesbare Tageseinträge)
+- **Druckbarer Monatsreport** (HTML/Print-to-PDF)
 
-### Beispielstruktur
+Ein JSON-Export ist ein gültiger Restore-Quell. Restore ersetzt den gesamten lokalen Stand.
+
+### Beispielstruktur des JSON-Exports
 
 ```json
 {
   "schemaVersion": 1,
-  "settings": {
-    "homeOfficeQuota": 0.6,
-    "federalState": "BY",
-    "roundingMode": "floor",
-    "startWithWindows": false,
-    "startMinimizedToTray": true
+  "preferences": {
+    "language": "de",
+    "theme": "system",
+    "warningThreshold": 0.8
   },
+  "policyHistory": [
+    { "effectiveMonth": "2026-01", "quota": 0.6, "federalState": "BY" }
+  ],
   "entries": {
     "2026-05-04": { "type": "office" },
-    "2026-05-05": { "type": "homeOffice" },
+    "2026-05-05": { "type": "remote-work" },
     "2026-05-06": { "type": "absence", "reason": "vacation" }
   }
 }
@@ -220,79 +229,81 @@ Vorteile:
 
 ### Technische Regeln
 
-- atomisches Schreiben der Datei
 - Schema-Versionierung für spätere Migrationen
-- defensive Validierung beim Laden
-- kein Schreiben in versteckte Systemverzeichnisse, solange Portable-Modus aktiv ist
+- Defensive Validierung beim Laden aus dem Browser-Storage
+- Atomisch schreiben über IndexedDB-Transaktionen
+- Exports verwenden stabile englische kebab-case Status-Codes (unabhängig von der UI-Sprache)
 
 ---
 
 ## Architektur
 
-### 1. Desktop Shell
+### 1. Statisches Hosting
 
-**Electron Main Process**
+**GitHub Pages**
 
-Verantwortlich für:
+- Vite baut einen vollständig statischen Asset-Bundle (`dist/`)
+- Deploy über GitHub Actions auf `gh-pages`-Branch
+- `base: '/'` in `vite.config.ts` (Root-Domain, kein Subpfad nötig)
 
-- Fenster-Lifecycle
-- System-Tray
-- Autostart-Integration
-- Dateizugriff
-- native Dialoge für Import/Export
-
-### 2. Renderer/UI
+### 2. UI-Schicht
 
 **React + TypeScript**
 
 Verantwortlich für:
 
-- Kalenderdarstellung
-- Eingabefluss
-- Auswertungsanzeigen
-- Einstellungen
-- Exportdialog
+- Kalenderdarstellung (Monatsübersicht, Jahresübersicht)
+- Eingabefluss und Statuszyklus
+- Auswertungsanzeigen (Summary Panel, Monatsstand)
+- Einstellungsdialog (Quote, Bundesland, Sprache, Theme, Warnschwelle)
+- Export- und Restore-Dialog
 
 ### 3. Domain Layer
 
 Separater, testbarer TypeScript-Bereich für:
 
-- Monatsberechnung
-- Feiertagsfilter
-- Quotenberechnung
-- Resttage-Logik
-- Report-Zusammenfassung
+- Monatsberechnung und Quotenlogik
+- Feiertagsfilter nach Bundesland
+- Regelverlauf-Auswertung (welche Policy gilt in welchem Monat)
+- Resttage-Logik, Monatsstand, Warnschwelle
+- Report-Zusammenfassung und CSV-Formatierung
 
 Wichtig: Die eigentliche Fachlogik darf **nicht** in UI-Komponenten verteilt sein.
 
 ### 4. Storage Layer
 
-Separater Zugriff auf:
+Kapselt den gesamten IndexedDB-Zugriff:
 
-- Laden/Speichern der JSON-Datei
-- Migrationslogik
-- Pfadauflösung für Portable-Modus
-- Exportdateien
+- Laden und Schreiben einzelner Tageseinträge
+- Laden und Schreiben des Regelverlaufs
+- Laden und Schreiben der Persönlichen Einstellungen
+- JSON-Export (vollständiger Dump) und Restore (vollständiger Ersatz)
+- CSV-Export der Einträge eines Monats
+- Schema-Migrationspfad bei `schemaVersion`-Änderung
 
-### 5. IPC-Grenze
+### 5. State-Management
 
-Renderer greift **nicht direkt** auf Node/Electron APIs zu, sondern über einen klaren **Preload-/IPC-Layer**. Das hält die App sicherer und wartbarer.
+**Zustand** als schlanker globaler Store:
+
+- Hält den aktuell angezeigten Monat und die geladenen Daten im Speicher
+- Änderungen werden synchron in IndexedDB persistiert
+- Kein prop-drilling durch tiefe Komponentenbäume
 
 ---
 
 ## Packaging- und Auslieferungsstrategie
 
-### Ziel für Windows
+### Ziel
 
-- **portable EXE**
-- möglichst ohne Installer
-- Datenfile liegt neben der EXE
+- **Vollständig statischer Build** via `vite build`
+- **Deployment auf GitHub Pages** via GitHub Actions (Branch `gh-pages`)
+- Jeder Nutzer öffnet die URL im Browser – kein Download, kein Installer, kein Server
+- CI/CD: jeder Push auf `main` löst einen neuen Deploy aus
 
-### Perspektive für macOS/Linux
+### Build-Artefakt
 
-- gleiche Codebasis
-- spätere Builds als ZIP/AppImage/dmg möglich
-- plattformspezifische Tray- und Autostart-Funktionen kapseln
+- `dist/` enthält HTML, JS, CSS und Assets
+- Keine Server-Seitigung, kein Node.js-Runtime nötig
 
 ---
 
@@ -320,51 +331,51 @@ Die App soll so aufgebaut werden, dass sie von einem Agenten weitgehend selbst g
 
 ## Geplanter Umsetzungsablauf
 
-### Phase 1 - Projektgrundlage
+### Phase 1 – Projektgrundlage
 
-- Electron/React/TypeScript-Projekt aufsetzen
-- Build, Dev-Start und Packaging vorbereiten
-- App-Layout und Theming-Grundlage anlegen
-- portable Pfadauflösung für Datendatei definieren
+- Vite/React/TypeScript-Projekt aufsetzen
+- ESLint, Vitest und Playwright konfigurieren
+- Basis-Layout, Theming-Grundlage und i18n-Vorbereitung anlegen
+- IndexedDB-Storage-Schicht mit Schema-Version und Validierung aufbauen
 
-### Phase 2 - Fachlogik und Datenmodell
+### Phase 2 – Fachlogik und Datenmodell
 
-- Typen für Einträge und Einstellungen definieren
-- Monatsberechnungsmodul bauen
-- Feiertagsintegration nach Bundesland umsetzen
-- JSON-Storage mit Schema-Version und Validierung bauen
+- Typen für Einträge, Regelverlauf und Einstellungen definieren
+- Monatsberechnungsmodul bauen (Arbeitstage, Kontingent, Monatsstand)
+- Feiertagsintegration nach Bundesland (date-holidays)
+- Regelverlauf-Auswertung: welche Policy gilt in welchem Monat
+- JSON-Export und Restore implementieren
 
-### Phase 3 - Haupt-UX
+### Phase 3 – Haupt-UX
 
 - Monatskalender implementieren
-- schnelle Tageseingabe umsetzen
-- farbliche Statuslogik und Legende einbauen
+- Schnelle Tageseingabe (Statuszyklus per Klick) umsetzen
+- Farbliche Statuslogik und Legende einbauen
 - Summary Panel mit Quotenstatus ergänzen
 
-### Phase 4 - Einstellungen und Historie
+### Phase 4 – Einstellungen und Historie
 
-- Einstellungsdialog für Quote, Bundesland, Startverhalten
-- Monatsnavigation und historische Übersichten
-- Zukunftseinträge sauber unterstützen
+- Einstellungsdialog für Quote, Bundesland, Sprache, Theme, Warnschwelle
+- Regelverlauf anzeigen und bearbeiten (Wirksamkeitsmonat)
+- Monatsnavigation und Jahresübersicht
+- Zukunftseinträge (Planung) sauber unterstützen
 
-### Phase 5 - Export und Reports
+### Phase 5 – Export und Reports
 
-- CSV-Export
-- JSON-Export
-- druckbaren Monatsreport erstellen
+- CSV-Export eines Monats
+- JSON-Export (vollständiger Dump) und Restore-Dialog
+- Druckbaren Monatsreport erstellen (HTML/Print-to-PDF)
 
-### Phase 6 - Desktop-Integration und Feinschliff
+### Phase 6 – Deploy-Pipeline
 
-- System-Tray
-- Autostart
-- Start minimiert
-- UX-Polish, Shortcuts, leise Animationen
+- GitHub Actions Workflow für automatischen Deploy auf GitHub Pages
+- `vite build` mit korrektem `base`-Pfad verifizieren
 
-### Phase 7 - Stabilisierung
+### Phase 7 – Stabilisierung
 
 - Tests vervollständigen
-- Fehlerszenarien absichern
-- Windows-Portable-Build verifizieren
+- Fehlerszenarien absichern (korrupte IndexedDB, leerer Store, Schema-Migration)
+- Cross-Browser-Verifikation (Chrome, Firefox, Safari)
 
 ---
 
@@ -403,17 +414,26 @@ Gegenmaßnahme:
 - Monatssicht priorisieren
 - nur die schnellsten Interaktionen zuerst bauen
 
-### 3. Dateipfad im Portable-Betrieb
+### 3. Browser-Storage Verlust
 
 Risiko:
-- Schreibrechte oder unerwartete Pfade
+- Nutzer löscht Browser-Daten und verliert alle Einträge
 
 Gegenmaßnahme:
-- Pfadstrategie früh testen
-- klarer Fallback und verständliche Fehlermeldung
+- Regelmäßiger JSON-Export als primäre Sicherungsstrategie klar kommunizieren
+- Export-Aktion im UI prominent platzieren
+
+### 4. IndexedDB-Kompatibilität
+
+Risiko:
+- Unerwartetes Verhalten in bestimmten Browsern oder Private-Mode
+
+Gegenmaßnahme:
+- idb-Wrapper abstrahiert Browser-Unterschiede
+- Verständliche Fehlermeldung bei nicht verfügbarem Storage
 
 ---
 
 ## Ergebnis dieses Plans
 
-HOmie sollte als **portable, lokale, datenschutzfreundliche Desktop-App** umgesetzt werden, technisch auf **Electron + React + TypeScript** basierend, mit **einer JSON-Datei als alleiniger Datenspeicher**, einer **kalenderzentrierten Schnell-Erfassung**, einer **klaren Monatsquote für Home Office** und **Export-/Report-Funktionen** für die Weitergabe der Daten.
+HOmie wird als **statische, browser-lokale, datenschutzfreundliche Web-App** umgesetzt, technisch auf **React + TypeScript + Vite** basierend, mit **IndexedDB als alleinigem Datenspeicher im Browser des Nutzers**, einer **kalenderzentrierten Schnell-Erfassung**, einer **klaren Monatsquote für Mobiles Arbeiten** und **Export-/Report-Funktionen** für die Weitergabe und Sicherung der Daten. Die App ist als statische Seite auf GitHub Pages deploybar.

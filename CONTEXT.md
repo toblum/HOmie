@@ -41,7 +41,7 @@ The chronological history of quota and federal-state rules across months. Each m
 _Avoid_: Verlauf, Historie
 
 **Persönliche Einstellungen / Personal Preferences**:
-User-specific display and application options that do not change quota math or historical month evaluation. In HOmie, these include language, theme, warning threshold, and autostart behavior.
+User-specific display and application options that do not change quota math or historical month evaluation. In HOmie, these include language, theme, and warning threshold.
 _Avoid_: Regelverlauf
 
 **Rückgängig / Undo**:
