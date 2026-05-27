@@ -1,0 +1,41 @@
+.app-shell {
+  display: grid;
+  gap: 2rem;
+}
+
+.hero {
+  display: grid;
+  gap: 1rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lead {
+  max-width: 48rem;
+  font-size: 1.1rem;
+}
+
+.foundation-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.foundation-card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.foundation-card h2 {
+  margin-bottom: 0.5rem;
+}

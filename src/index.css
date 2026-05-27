@@ -1,0 +1,67 @@
+:root {
+  --text: #3c4050;
+  --text-h: #171923;
+  --bg: #f7f8fc;
+  --surface: #ffffff;
+  --border: #d7dceb;
+  --accent: #5856d6;
+  --shadow:
+    0 12px 30px -18px rgba(30, 41, 59, 0.45), 0 10px 18px -24px rgba(15, 23, 42, 0.4);
+
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font: 18px/1.5 var(--sans);
+  color-scheme: light;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #d9dfef;
+    --text-h: #f7f9fc;
+    --bg: #0f172a;
+    --surface: #162033;
+    --border: #2c3a56;
+    --accent: #a5b4fc;
+    --shadow:
+      0 12px 30px -18px rgba(15, 23, 42, 0.8), 0 10px 18px -24px rgba(15, 23, 42, 0.85);
+  }
+}
+
+#root {
+  width: min(100%, 72rem);
+  max-width: 100%;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 4rem 1.5rem;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+h1,
+h2 {
+  margin: 0;
+  color: var(--text-h);
+}
+
+h1 {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  line-height: 1.05;
+}
+
+h2 {
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+p {
+  margin: 0;
+}
