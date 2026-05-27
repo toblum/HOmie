@@ -107,4 +107,15 @@ describe('classifyMonthDays', () => {
       expect.arrayContaining(['excluded-day', 'public-holiday']),
     )
   })
+
+  it('fails explicitly for invalid month input', () => {
+    expect(() =>
+      classifyMonthDays({
+        month: '2026-13',
+        federalState: 'BY',
+        excludedDays: [],
+        overrides: [],
+      }),
+    ).toThrow('Invalid month value')
+  })
 })

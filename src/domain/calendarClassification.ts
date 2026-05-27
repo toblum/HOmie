@@ -28,9 +28,7 @@ export function classifyMonthDays({
   excludedDays,
   overrides,
 }: MonthClassificationInput): DayClassification[] {
-  const [yearPart, monthPart] = month.split('-')
-  const year = Number(yearPart)
-  const monthIndex = Number(monthPart) - 1
+  const { year, monthIndex } = parseMonth(month)
   const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate()
   const excludedDaySet = new Set(excludedDays)
   const overrideSet = new Set(overrides)
@@ -87,4 +85,20 @@ function resolveBaseKind(nonWorkingReasons: NonWorkingReason[]): DayKind {
 
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10)
+}
+
+function parseMonth(month: string): { year: number; monthIndex: number } {
+  const match = /^(\d{4})-(\d{2})$/.exec(month)
+  if (!match) {
+    throw new Error(`Invalid month format "${month}". Expected YYYY-MM.`)
+  }
+
+  const year = Number(match[1])
+  const monthNumber = Number(match[2])
+
+  if (!Number.isInteger(year) || monthNumber < 1 || monthNumber > 12) {
+    throw new Error(`Invalid month value "${month}". Expected YYYY-MM.`)
+  }
+
+  return { year, monthIndex: monthNumber - 1 }
 }
