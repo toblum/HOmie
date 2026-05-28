@@ -22,6 +22,7 @@
 }
 
 .hero-panel h1,
+.summary-panel h2,
 .calendar-panel h2,
 .detail-dialog h2 {
   color: #1f2937;
@@ -91,6 +92,102 @@
 .policy-chip {
   border: 1px dashed rgba(29, 42, 63, 0.18);
   background: rgba(255, 255, 255, 0.48);
+}
+
+.summary-panel {
+  display: grid;
+  gap: 1.2rem;
+  padding: 1.3rem;
+  border-radius: 1.75rem;
+  color: #243244;
+  background:
+    radial-gradient(circle at top left, rgba(171, 222, 213, 0.2), transparent 35%),
+    linear-gradient(180deg, rgba(255, 250, 243, 0.95), rgba(252, 247, 238, 0.92));
+  border: 1px solid rgba(53, 63, 82, 0.08);
+  box-shadow: var(--shadow);
+}
+
+.summary-panel-head {
+  display: flex;
+  gap: 1rem;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.summary-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.summary-metric {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.95rem 1rem;
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(53, 63, 82, 0.08);
+}
+
+.summary-metric-wide {
+  grid-column: span 2;
+}
+
+.summary-metric dt,
+.usage-label {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summary-metric dd {
+  margin: 0;
+  font-size: clamp(1.2rem, 0.7vw + 1rem, 1.75rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.usage-panel {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1.2rem;
+  background: rgba(31, 41, 55, 0.94);
+  color: #f8fafc;
+}
+
+.usage-copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.usage-copy p,
+.usage-copy strong {
+  margin: 0;
+}
+
+.usage-copy strong {
+  font-size: clamp(1.35rem, 0.7vw + 1.15rem, 2rem);
+  line-height: 1;
+}
+
+.usage-meter {
+  position: relative;
+  overflow: hidden;
+  height: 0.85rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.usage-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9ae6b4, #f8cd4a 72%, #f08a5d);
 }
 
 .calendar-panel {
@@ -364,6 +461,15 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
   }
+
+  .summary-panel {
+    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.85fr);
+    align-items: start;
+  }
+
+  .summary-panel-head {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 1120px) {
@@ -422,6 +528,14 @@
 }
 
 @media (max-width: 720px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-metric-wide {
+    grid-column: span 1;
+  }
+
   .calendar-panel {
     padding: 1rem;
   }
