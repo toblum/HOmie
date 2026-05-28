@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { classifyMonth } from './calendarClassification'
-import { classifyMonthEvaluationStatus, evaluateMonth } from './monthEvaluation'
+import { evaluateMonth } from './monthEvaluation'
 
 describe('evaluateMonth', () => {
   it('returns the base month counts for a future month without entries', () => {
@@ -31,11 +31,10 @@ describe('evaluateMonth', () => {
       absenceDays: 0,
       openWorkingDays: 0,
       usagePercentage: 0,
-      status: 'normal',
     })
   })
 
-  it('marks a month exactly at allowance as warning', () => {
+  it('reports full usage when remote-work days exactly match allowance', () => {
     const classifications = classifyMonth({
       year: 2025,
       month: 2,
@@ -59,10 +58,9 @@ describe('evaluateMonth', () => {
     expect(result.allowance).toBe(2)
     expect(result.remoteWorkDays).toBe(2)
     expect(result.usagePercentage).toBe(100)
-    expect(result.status).toBe('warning')
   })
 
-  it('marks a month one remote-work day over allowance as over-limit', () => {
+  it('reports usage above one hundred percent when remote-work days exceed allowance', () => {
     const classifications = classifyMonth({
       year: 2025,
       month: 2,
@@ -87,7 +85,6 @@ describe('evaluateMonth', () => {
     expect(result.allowance).toBe(2)
     expect(result.remoteWorkDays).toBe(3)
     expect(result.usagePercentage).toBe(150)
-    expect(result.status).toBe('over-limit')
   })
 
   it('reduces the quota base when a working day is marked as vacation', () => {
@@ -216,24 +213,6 @@ describe('evaluateMonth', () => {
       sickDays: 1,
       absenceDays: 2,
       openWorkingDays: 0,
-      status: 'not-applicable',
     })
-  })
-})
-
-describe('classifyMonthEvaluationStatus', () => {
-  it('covers each public status state', () => {
-    expect(
-      classifyMonthEvaluationStatus({ workingDays: 10, allowance: 6, remoteWorkDays: 3 }),
-    ).toBe('normal')
-    expect(
-      classifyMonthEvaluationStatus({ workingDays: 10, allowance: 6, remoteWorkDays: 6 }),
-    ).toBe('warning')
-    expect(
-      classifyMonthEvaluationStatus({ workingDays: 10, allowance: 6, remoteWorkDays: 7 }),
-    ).toBe('over-limit')
-    expect(
-      classifyMonthEvaluationStatus({ workingDays: 0, allowance: 0, remoteWorkDays: 0 }),
-    ).toBe('not-applicable')
   })
 })

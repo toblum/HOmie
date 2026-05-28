@@ -8,6 +8,7 @@ import {
   type DayEntryStatus,
   type MonthEvaluation,
 } from './domain/monthEvaluation'
+import { classifyMonthStatus, type MonthStatus } from './domain/monthStatus'
 import {
   resolvePolicyForMonth,
   type EffectiveMonth,
@@ -52,7 +53,7 @@ const DAY_KIND_LABELS: Record<DayClassification['kind'], string> = {
   'public-holiday': 'Feiertag',
   'excluded-day': 'Ausschlusstag',
 }
-const MONTH_STATUS_LABELS: Record<MonthEvaluation['status'], string> = {
+const MONTH_STATUS_LABELS: Record<MonthStatus, string> = {
   normal: 'Normal',
   warning: 'Warnung',
   'over-limit': 'Über Limit',
@@ -384,6 +385,10 @@ function formatFullDate(date: IsoDate): string {
   }).format(new Date(`${date}T12:00:00`))
 }
 
+function formatUsagePercentage(value: number): string {
+  return `${Math.round(value)} %`
+}
+
 function getDayNumber(date: IsoDate): string {
   return date.slice(8, 10)
 }
@@ -430,6 +435,10 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   }
 
   const calendar = buildCalendarMonthViewModel(selectedMonth, today, snapshot)
+  const monthStatus = classifyMonthStatus({
+    evaluation: calendar.evaluation,
+    warningThreshold: snapshot.preferences.warningThreshold,
+  })
 
   return (
     <main className="app-shell">
@@ -444,12 +453,81 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
         </div>
 
         <div className="hero-aside">
-          <div className={`status-pill status-${calendar.evaluation.status}`}>
-            Monatsstand {MONTH_STATUS_LABELS[calendar.evaluation.status]}
+          <div className={`status-pill status-${monthStatus}`}>
+            Monatsstand {MONTH_STATUS_LABELS[monthStatus]}
           </div>
           <p className="policy-chip">
             Quote {Math.round(calendar.policy.quota * 100)} % · Bundesland {calendar.policy.bundesland}
           </p>
+        </div>
+      </section>
+
+      <section className="summary-panel" aria-label="Monatsstand">
+        <div className="summary-panel-head">
+          <div>
+            <p className="eyebrow">Auswertung</p>
+            <h2>Monatsstand</h2>
+          </div>
+          <div className={`status-pill status-${monthStatus}`}>
+            {MONTH_STATUS_LABELS[monthStatus]}
+          </div>
+        </div>
+
+        <dl className="summary-grid">
+          <div className="summary-metric">
+            <dt>Arbeitstage</dt>
+            <dd>{calendar.evaluation.workingDays}</dd>
+          </div>
+          <div className="summary-metric">
+            <dt>Kontingent</dt>
+            <dd>{calendar.evaluation.allowance}</dd>
+          </div>
+          <div className="summary-metric summary-metric-wide">
+            <dt>Mobiles Arbeiten</dt>
+            <dd>
+              {calendar.evaluation.remoteWorkDays} / {calendar.evaluation.allowance}
+            </dd>
+          </div>
+          <div className="summary-metric">
+            <dt>Büro</dt>
+            <dd>{calendar.evaluation.officeDays}</dd>
+          </div>
+          <div className="summary-metric">
+            <dt>Abwesenheit</dt>
+            <dd>{calendar.evaluation.absenceDays}</dd>
+          </div>
+          <div className="summary-metric summary-metric-wide">
+            <dt>Offene Arbeitstage</dt>
+            <dd>{calendar.evaluation.openWorkingDays}</dd>
+          </div>
+        </dl>
+
+        <div className="usage-panel">
+          <div className="usage-copy">
+            <div>
+              <p className="usage-label">Verbrauch</p>
+              <strong>{formatUsagePercentage(calendar.evaluation.usagePercentage)}</strong>
+            </div>
+            <p>
+              {calendar.evaluation.remoteWorkDays} von {calendar.evaluation.allowance} möglichen
+              Mobiles-Arbeiten-Tagen genutzt.
+            </p>
+          </div>
+          <div
+            className="usage-meter"
+            role="progressbar"
+            aria-label="Verbrauch"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.max(0, Math.min(100, Math.round(calendar.evaluation.usagePercentage)))}
+          >
+            <span
+              className="usage-meter-fill"
+              style={{
+                width: `${Math.max(0, Math.min(100, calendar.evaluation.usagePercentage))}%`,
+              }}
+            />
+          </div>
         </div>
       </section>
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import App from './App'
 import { createBrowserStorage, type BrowserStorage } from './storage/browserStorage'
@@ -6,6 +6,8 @@ import { createBrowserStorage, type BrowserStorage } from './storage/browserStor
 const createdDatabases = new Set<string>()
 
 afterEach(async () => {
+  cleanup()
+
   await Promise.all(
     [...createdDatabases].map(
       (dbName) =>
@@ -43,7 +45,127 @@ function createFailingStorage(message: string): BrowserStorage {
   }
 }
 
+function expectSummaryMetric(summaryPanel: HTMLElement, label: string, value: string) {
+  const metric = within(summaryPanel).getByText(label).closest('.summary-metric')
+
+  expect(metric).not.toBeNull()
+  expect(within(metric as HTMLElement).getByText(value)).toBeInTheDocument()
+}
+
 describe('App', () => {
+  it('renders the summary panel values for the selected month', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([{ effectiveMonth: '1900-01', quota: 0.5, bundesland: 'BE' }])
+    await storage.saveDayEntry({ date: '2025-02-03', status: 'remote-work' })
+    await storage.saveDayEntry({ date: '2025-02-04', status: 'office' })
+
+    render(<App storage={storage} today="2025-02-01" />)
+
+    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
+
+    expectSummaryMetric(summaryPanel, 'Arbeitstage', '20')
+    expectSummaryMetric(summaryPanel, 'Kontingent', '10')
+    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 / 10')
+    expectSummaryMetric(summaryPanel, 'Büro', '1')
+    expectSummaryMetric(summaryPanel, 'Abwesenheit', '0')
+    expectSummaryMetric(summaryPanel, 'Offene Arbeitstage', '0')
+    expect(within(summaryPanel).getByText('Verbrauch')).toBeInTheDocument()
+    expect(within(summaryPanel).getByText('10 %')).toBeInTheDocument()
+  })
+
+  it('updates the summary panel immediately when a working day changes status', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([{ effectiveMonth: '1900-01', quota: 0.5, bundesland: 'BE' }])
+
+    render(<App storage={storage} today="2025-02-01" />)
+
+    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
+    const dayCell = await screen.findByRole('gridcell', { name: /3 Montag/i })
+
+    fireEvent.click(within(dayCell).getByRole('button'))
+
+    await waitFor(() => {
+      expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 / 10')
+      expect(within(summaryPanel).getByText('10 %')).toBeInTheDocument()
+    })
+  })
+
+  it('shows warning when remote-work usage exceeds the saved warning threshold', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([{ effectiveMonth: '1900-01', quota: 0.5, bundesland: 'BE' }])
+    await storage.savePreferences({ language: 'de', theme: 'system', warningThreshold: 0.75 })
+
+    for (const date of [
+      '2025-02-03',
+      '2025-02-04',
+      '2025-02-05',
+      '2025-02-06',
+      '2025-02-07',
+      '2025-02-10',
+      '2025-02-11',
+      '2025-02-12',
+    ] as const) {
+      await storage.saveDayEntry({ date, status: 'remote-work' })
+    }
+
+    render(<App storage={storage} today="2025-02-01" />)
+
+    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
+
+    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '8 / 10')
+    expect(within(summaryPanel).getByText('Warnung')).toBeInTheDocument()
+  })
+
+  it('uses the effective policy-history quota and shows over-limit when usage exceeds it', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([
+      { effectiveMonth: '1900-01', quota: 0.5, bundesland: 'BE' },
+      { effectiveMonth: '2025-02', quota: 0.2, bundesland: 'BE' },
+    ])
+
+    for (const date of [
+      '2025-02-03',
+      '2025-02-04',
+      '2025-02-05',
+      '2025-02-06',
+      '2025-02-07',
+    ] as const) {
+      await storage.saveDayEntry({ date, status: 'remote-work' })
+    }
+
+    render(<App storage={storage} today="2025-02-01" />)
+
+    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
+
+    expectSummaryMetric(summaryPanel, 'Kontingent', '4')
+    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '5 / 4')
+    expect(within(summaryPanel).getByText('Über Limit')).toBeInTheDocument()
+  })
+
+  it('shows not-applicable when a month has no working days after absences', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([{ effectiveMonth: '1900-01', quota: 0.5, bundesland: 'BE' }])
+
+    for (let day = 1; day <= 28; day += 1) {
+      const date = new Date(2025, 1, day, 12)
+      const weekday = date.getDay()
+
+      if (weekday !== 0 && weekday !== 6) {
+        const isoDate = `2025-02-${String(day).padStart(2, '0')}` as const
+        await storage.saveDayEntry({ date: isoDate, status: 'vacation' })
+      }
+    }
+
+    render(<App storage={storage} today="2025-02-28" />)
+
+    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
+
+    expectSummaryMetric(summaryPanel, 'Arbeitstage', '0')
+    expectSummaryMetric(summaryPanel, 'Kontingent', '0')
+    expectSummaryMetric(summaryPanel, 'Abwesenheit', '20')
+    expect(within(summaryPanel).getByText('Nicht anwendbar')).toBeInTheDocument()
+  })
+
   it('renders every day of the selected month and marks booking versus planning days', async () => {
     render(<App storage={createTestStorage()} today="2026-05-15" />)
 
@@ -74,13 +196,16 @@ describe('App', () => {
     const dayButton = within(dayCell).getByRole('button')
     fireEvent.click(dayButton)
 
-    expect(await firstRender.findByText('Mobiles Arbeiten')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(within(dayCell).getByText('Mobiles Arbeiten')).toBeInTheDocument()
+    })
 
     view.unmount()
     const reloadedView = render(<App storage={storage} today="2026-05-15" />)
     const secondRender = within(reloadedView.container)
+    const reloadedCell = await secondRender.findByRole('gridcell', { name: /15 Freitag/i })
 
-    expect(await secondRender.findByText('Mobiles Arbeiten')).toBeInTheDocument()
+    expect(within(reloadedCell).getByText('Mobiles Arbeiten')).toBeInTheDocument()
   })
 
   it('opens a detail view, saves an explicit status with note, and restores both after reload', async () => {
@@ -102,7 +227,9 @@ describe('App', () => {
     await waitFor(() => {
       expect(firstRender.queryByRole('dialog', { name: 'Tag bearbeiten' })).not.toBeInTheDocument()
     })
-    expect(firstRender.getByText('Büro')).toBeInTheDocument()
+
+    const updatedCell = await firstRender.findByRole('gridcell', { name: /15 Freitag/i })
+    expect(within(updatedCell).getByText('Büro')).toBeInTheDocument()
 
     view.unmount()
     const reloadedView = render(<App storage={storage} today="2026-05-15" />)

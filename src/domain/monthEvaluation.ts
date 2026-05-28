@@ -8,8 +8,6 @@ export interface DayEntry {
   note?: string
 }
 
-export type MonthEvaluationStatus = 'normal' | 'warning' | 'over-limit' | 'not-applicable'
-
 export interface EvaluateMonthInput {
   year: number
   month: number
@@ -29,27 +27,6 @@ export interface MonthEvaluation {
   absenceDays: number
   openWorkingDays: number
   usagePercentage: number
-  status: MonthEvaluationStatus
-}
-
-export function classifyMonthEvaluationStatus(input: {
-  workingDays: number
-  allowance: number
-  remoteWorkDays: number
-}): MonthEvaluationStatus {
-  if (input.workingDays === 0) {
-    return 'not-applicable'
-  }
-
-  if (input.remoteWorkDays > input.allowance) {
-    return 'over-limit'
-  }
-
-  if (input.allowance > 0 && input.remoteWorkDays === input.allowance) {
-    return 'warning'
-  }
-
-  return 'normal'
 }
 
 function isWorkingDay(day: DayClassification): boolean {
@@ -125,10 +102,5 @@ export function evaluateMonth(input: EvaluateMonthInput): MonthEvaluation {
     absenceDays,
     openWorkingDays,
     usagePercentage: calculateUsagePercentage(remoteWorkDays, allowance),
-    status: classifyMonthEvaluationStatus({
-      workingDays,
-      allowance,
-      remoteWorkDays,
-    }),
   }
 }
