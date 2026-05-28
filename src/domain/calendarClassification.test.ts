@@ -286,8 +286,8 @@ describe('classifyMonth returns exactly the days of the requested month', () => 
       ueberschreibungen: [],
     })
     expect(days).toHaveLength(28)
-    expect(days[0].date).toBe('2025-02-01')
-    expect(days[27].date).toBe('2025-02-28')
+    expect(days[0]!.date).toBe('2025-02-01')
+    expect(days[27]!.date).toBe('2025-02-28')
   })
 
   it('returns 29 entries for February 2024 (leap year)', () => {

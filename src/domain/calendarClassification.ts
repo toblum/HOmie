@@ -56,9 +56,14 @@ export function classifyMonth(input: ClassifyMonthInput): DayClassification[] {
     const isPublicHoliday =
       holidayInfo !== false &&
       holidayInfo.some((h) => h.type === 'public')
-    const holidayName: string | undefined = isPublicHoliday
-      ? (holidayInfo as { name: string }[])[0].name
-      : undefined
+
+    let holidayName: string | undefined
+    if (isPublicHoliday) {
+      const first = holidayInfo[0]
+      if (first !== undefined) {
+        holidayName = first.name
+      }
+    }
 
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
     const isAusschlusstag = ausschlussSet.has(iso)
@@ -72,10 +77,8 @@ export function classifyMonth(input: ClassifyMonthInput): DayClassification[] {
       baseNonWorkingReason = 'weekend'
     }
 
-    const isNonWorking = baseNonWorkingReason !== undefined
-
     // --- Apply Überschreibung if present ---
-    if (ueberschreibungSet.has(iso) && isNonWorking) {
+    if (ueberschreibungSet.has(iso) && baseNonWorkingReason !== undefined) {
       results.push({
         date: iso,
         kind: 'overridden-working-day',
@@ -83,7 +86,11 @@ export function classifyMonth(input: ClassifyMonthInput): DayClassification[] {
         ...(holidayName !== undefined ? { holidayName } : {}),
       })
     } else if (isPublicHoliday) {
-      results.push({ date: iso, kind: 'public-holiday', holidayName })
+      results.push({
+        date: iso,
+        kind: 'public-holiday',
+        ...(holidayName !== undefined ? { holidayName } : {}),
+      })
     } else if (isAusschlusstag) {
       results.push({ date: iso, kind: 'excluded-day' })
     } else if (isWeekend) {
