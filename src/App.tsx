@@ -28,7 +28,7 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat('de-DE', {
 const WEEKDAY_FORMATTER = new Intl.DateTimeFormat('de-DE', { weekday: 'long' })
 const SHORT_WEEKDAY_FORMATTER = new Intl.DateTimeFormat('de-DE', { weekday: 'short' })
 const WEEKDAY_HEADERS = [1, 2, 3, 4, 5, 6, 0].map((weekday) => {
-  const referenceDate = new Date(Date.UTC(2026, 0, 4 + weekday))
+  const referenceDate = new Date(2026, 0, 4 + weekday, 12)
   return SHORT_WEEKDAY_FORMATTER.format(referenceDate).replace('.', '')
 })
 const STATUS_SEQUENCE: Array<DayEntryStatus | 'unset'> = [
@@ -41,7 +41,7 @@ const STATUS_SEQUENCE: Array<DayEntryStatus | 'unset'> = [
 const STATUS_LABELS: Record<DayEntryStatus | 'unset', string> = {
   unset: 'Leer',
   'remote-work': 'Mobiles Arbeiten',
-  office: 'Buro',
+  office: 'Büro',
   vacation: 'Urlaub',
   sick: 'Krank',
 }
@@ -55,7 +55,7 @@ const DAY_KIND_LABELS: Record<DayClassification['kind'], string> = {
 const MONTH_STATUS_LABELS: Record<MonthEvaluation['status'], string> = {
   normal: 'Normal',
   warning: 'Warnung',
-  'over-limit': 'Uber Limit',
+  'over-limit': 'Über Limit',
   'not-applicable': 'Nicht anwendbar',
 }
 const DEFAULT_POLICY_ENTRY: PolicyHistoryEntry = {
@@ -145,7 +145,7 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
       set({
         snapshot: null,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Monatsubersicht konnte nicht geladen werden',
+        error: error instanceof Error ? error.message : 'Monatsübersicht konnte nicht geladen werden',
       })
     }
   },
@@ -410,21 +410,21 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     void initialize({ storage, today })
   }, [initialize, storage, today])
 
-  if (isLoading || !snapshot) {
+  if (error) {
     return (
       <main className="app-shell loading-state">
-        <p className="eyebrow">Monatsubersicht</p>
-        <h1>HOmie wird geladen</h1>
+        <p className="eyebrow">Monatsübersicht</p>
+        <h1>Speicherfehler</h1>
+        <p className="lead">{error}</p>
       </main>
     )
   }
 
-  if (error) {
+  if (isLoading || !snapshot) {
     return (
       <main className="app-shell loading-state">
-        <p className="eyebrow">Monatsubersicht</p>
-        <h1>Speicherfehler</h1>
-        <p className="lead">{error}</p>
+        <p className="eyebrow">Monatsübersicht</p>
+        <h1>HOmie wird geladen</h1>
       </main>
     )
   }
@@ -435,10 +435,10 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     <main className="app-shell">
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">Monatsubersicht</p>
+          <p className="eyebrow">Monatsübersicht</p>
           <h1>{calendar.heading}</h1>
           <p className="lead">
-            Primare Arbeitsflache fur Planung und Buchung mit sofortiger Speicherung in
+            Primäre Arbeitsfläche für Planung und Buchung mit sofortiger Speicherung in
             IndexedDB.
           </p>
         </div>

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import App from './App'
-import { createBrowserStorage } from './storage/browserStorage'
+import { createBrowserStorage, type BrowserStorage } from './storage/browserStorage'
 
 const createdDatabases = new Set<string>()
 
@@ -24,6 +24,23 @@ function createTestStorage() {
   const dbName = `homie-app-test-${crypto.randomUUID()}`
   createdDatabases.add(dbName)
   return createBrowserStorage({ dbName })
+}
+
+function createFailingStorage(message: string): BrowserStorage {
+  return {
+    load: async () => {
+      throw new Error(message)
+    },
+    saveDayEntry: async () => {},
+    deleteDayEntry: async () => {},
+    savePolicyHistory: async () => {},
+    savePreferences: async () => {},
+    saveExcludedDays: async () => {},
+    exportState: async () => {
+      throw new Error(message)
+    },
+    restoreState: async () => {},
+  }
 }
 
 describe('App', () => {
@@ -76,7 +93,7 @@ describe('App', () => {
 
     expect(await firstRender.findByRole('dialog', { name: 'Tag bearbeiten' })).toBeInTheDocument()
 
-    fireEvent.click(firstRender.getByLabelText('Buro'))
+    fireEvent.click(firstRender.getByLabelText('Büro'))
     fireEvent.change(firstRender.getByLabelText('Notiz'), {
       target: { value: 'Desk day' },
     })
@@ -85,7 +102,7 @@ describe('App', () => {
     await waitFor(() => {
       expect(firstRender.queryByRole('dialog', { name: 'Tag bearbeiten' })).not.toBeInTheDocument()
     })
-    expect(firstRender.getByText('Buro')).toBeInTheDocument()
+    expect(firstRender.getByText('Büro')).toBeInTheDocument()
 
     view.unmount()
     const reloadedView = render(<App storage={storage} today="2026-05-15" />)
@@ -94,7 +111,7 @@ describe('App', () => {
     fireEvent.contextMenu(within(reloadedCell).getByRole('button'))
 
     expect(await secondRender.findByDisplayValue('Desk day')).toBeInTheDocument()
-    expect(secondRender.getByRole('radio', { name: 'Buro' })).toBeChecked()
+    expect(secondRender.getByRole('radio', { name: 'Büro' })).toBeChecked()
   })
 
   it('resets a day to unset, removes the note, and persists the cleared state', async () => {
@@ -104,7 +121,7 @@ describe('App', () => {
 
     const dayCell = await firstRender.findByRole('gridcell', { name: /15 Freitag/i })
     fireEvent.contextMenu(within(dayCell).getByRole('button'))
-    fireEvent.click(firstRender.getByLabelText('Buro'))
+    fireEvent.click(firstRender.getByLabelText('Büro'))
     fireEvent.change(firstRender.getByLabelText('Notiz'), {
       target: { value: 'Desk day' },
     })
@@ -154,5 +171,17 @@ describe('App', () => {
     expect(within(weekendCell).getByText('Wochenende')).toBeInTheDocument()
     expect(within(excludedCell).queryByRole('button')).not.toBeInTheDocument()
     expect(within(excludedCell).getByText('Ausschlusstag')).toBeInTheDocument()
+  })
+
+  it('shows the storage error state when loading fails', async () => {
+    const view = render(
+      <App storage={createFailingStorage('IndexedDB ist nicht verfügbar')} today="2026-05-15" />,
+    )
+    const rendered = within(view.container)
+
+    expect(
+      await rendered.findByRole('heading', { level: 1, name: 'Speicherfehler' }),
+    ).toBeInTheDocument()
+    expect(rendered.getByText('IndexedDB ist nicht verfügbar')).toBeInTheDocument()
   })
 })
