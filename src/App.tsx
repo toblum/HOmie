@@ -17,6 +17,7 @@ import {
 import type { DayClassification, IsoDate } from './domain/types'
 import {
   createBrowserStorage,
+  BUNDESLAENDER,
   type BrowserStorage,
   type BrowserStorageState,
   type PersonalPreferences,
@@ -35,24 +36,6 @@ const DEFAULT_POLICY_ENTRY: PolicyHistoryEntry = {
   quota: 0.6,
   bundesland: 'BE',
 }
-const BUNDESLAND_OPTIONS: Array<PolicyHistoryEntry['bundesland']> = [
-  'BB',
-  'BE',
-  'BW',
-  'BY',
-  'HB',
-  'HE',
-  'HH',
-  'MV',
-  'NI',
-  'NW',
-  'RP',
-  'SH',
-  'SL',
-  'SN',
-  'ST',
-  'TH',
-]
 const LOCALE_BY_LANGUAGE: Record<PersonalPreferences['language'], string> = {
   de: 'de-DE',
   en: 'en-US',
@@ -870,11 +853,24 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
       return
     }
 
-    const resolvedTheme = resolveThemePreference(snapshot.preferences.theme)
+    const theme = snapshot.preferences.theme
 
-    document.documentElement.dataset.theme = resolvedTheme
-    document.documentElement.dataset.themePreference = snapshot.preferences.theme
-    document.documentElement.style.colorScheme = resolvedTheme
+    const applyTheme = () => {
+      const resolvedTheme = resolveThemePreference(theme)
+      document.documentElement.dataset.theme = resolvedTheme
+      document.documentElement.dataset.themePreference = theme
+      document.documentElement.style.colorScheme = resolvedTheme
+    }
+
+    applyTheme()
+
+    if (theme === 'system' && typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      mediaQuery.addEventListener('change', applyTheme)
+      return () => {
+        mediaQuery.removeEventListener('change', applyTheme)
+      }
+    }
   }, [snapshot])
 
   if (error) {
@@ -1129,6 +1125,10 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 step={1}
                 value={Math.round(snapshot.preferences.warningThreshold * 100)}
                 onChange={(event) => {
+                  if (event.target.value === '') {
+                    return
+                  }
+
                   const nextValue = Number(event.target.value)
 
                   if (Number.isNaN(nextValue) || nextValue < 0 || nextValue > 100) {
@@ -1214,7 +1214,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                   aria-label={t.federalState}
                   defaultValue={latestPolicyEntry.bundesland}
                 >
-                  {BUNDESLAND_OPTIONS.map((bundesland) => (
+                  {BUNDESLAENDER.map((bundesland) => (
                     <option key={bundesland} value={bundesland}>
                       {bundesland}
                     </option>
