@@ -1,11 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { createBrowserStorage, type BrowserStorage } from './storage/browserStorage'
 
 const createdDatabases = new Set<string>()
 
 afterEach(async () => {
+  vi.restoreAllMocks()
   cleanup()
 
   await Promise.all(
@@ -157,6 +158,241 @@ describe('App', () => {
     const reloadedSummary = await screen.findByRole('region', { name: 'Monatsstand' })
     expect(within(reloadedSummary).getByText('Warnung')).toBeInTheDocument()
     expect(screen.getByLabelText('Warnschwelle')).toHaveValue(75)
+  })
+
+  it('exports the full state as a JSON download from the settings UI', async () => {
+    const storage = createTestStorage()
+    await storage.savePreferences({ language: 'de', theme: 'system', warningThreshold: 0.75 })
+    await storage.savePolicyHistory([{ effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BY' }])
+    await storage.saveDayEntry({ date: '2026-05-15', status: 'remote-work', note: 'Fokuszeit' })
+    await storage.saveExcludedDays(['2026-05-21'])
+
+    const createObjectUrlSpy = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation(() => 'blob:homie-export')
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    render(<App storage={storage} today="2026-05-15" />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'JSON exportieren' }))
+
+    await waitFor(async () => {
+      expect(createObjectUrlSpy).toHaveBeenCalledTimes(1)
+
+      const [blob] = createObjectUrlSpy.mock.calls[0] ?? []
+      expect(blob).toBeInstanceOf(Blob)
+
+      const exportedState = JSON.parse(await (blob as Blob).text())
+
+      expect(exportedState).toEqual({
+        schemaVersion: 1,
+        preferences: { language: 'de', theme: 'system', warningThreshold: 0.75 },
+        policyHistory: [
+          { effectiveMonth: '1900-01', quota: 0.4, bundesland: 'BY' },
+          { effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BY' },
+        ],
+        entries: [{ date: '2026-05-15', status: 'remote-work', note: 'Fokuszeit' }],
+        excludedDays: ['2026-05-21'],
+      })
+      expect(anchorClickSpy).toHaveBeenCalledTimes(1)
+      expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:homie-export')
+    })
+  })
+
+  it('restores a JSON snapshot after confirmation and updates the UI immediately', async () => {
+    const storage = createTestStorage()
+    await storage.savePreferences({ language: 'de', theme: 'system', warningThreshold: 0.75 })
+    await storage.savePolicyHistory([{ effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BY' }])
+    await storage.saveDayEntry({ date: '2026-05-15', status: 'remote-work', note: 'Altbestand' })
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const restoreFile = new File(
+      [
+        JSON.stringify({
+          schemaVersion: 1,
+          preferences: { language: 'en', theme: 'dark', warningThreshold: 0.6 },
+          policyHistory: [
+            { effectiveMonth: '1900-01', quota: 0.25, bundesland: 'NW' },
+            { effectiveMonth: '2026-01', quota: 0.25, bundesland: 'NW' },
+          ],
+          entries: [{ date: '2026-05-13', status: 'office', note: 'Restored desk day' }],
+          excludedDays: ['2026-05-05'],
+        }),
+      ],
+      'homie-restore.json',
+      { type: 'application/json' },
+    )
+
+    render(<App storage={storage} today="2026-05-15" />)
+
+    const restoreInput = (await screen.findByLabelText('JSON wiederherstellen')) as HTMLInputElement
+    expect(restoreInput).toHaveAttribute('accept', 'application/json,.json')
+
+    fireEvent.change(restoreInput, {
+      target: {
+        files: [restoreFile],
+      },
+    })
+
+    await waitFor(async () => {
+      expect(confirmSpy).toHaveBeenCalledTimes(1)
+      expect(await screen.findByRole('region', { name: 'Policy History' })).toBeInTheDocument()
+      expect(document.documentElement.dataset.theme).toBe('dark')
+      expect(screen.getByLabelText('Warning threshold')).toHaveValue(60)
+
+      const restoredOfficeCell = screen.getByRole('gridcell', { name: /13 Wednesday/i })
+      const clearedCell = screen.getByRole('gridcell', { name: /15 Friday/i })
+
+      expect(within(restoredOfficeCell).getByText('Office')).toBeInTheDocument()
+      expect(within(clearedCell).getByText('Unset')).toBeInTheDocument()
+      expect(within(clearedCell).queryByText('Remote Work')).not.toBeInTheDocument()
+
+      await expect(storage.load()).resolves.toMatchObject({
+        preferences: { language: 'en', theme: 'dark', warningThreshold: 0.6 },
+        entries: [{ date: '2026-05-13', status: 'office', note: 'Restored desk day' }],
+        excludedDays: ['2026-05-05'],
+      })
+    })
+  })
+
+  it('shows a clear restore error for an incompatible snapshot and keeps the current state untouched', async () => {
+    const storage = createTestStorage()
+    await storage.savePreferences({ language: 'de', theme: 'system', warningThreshold: 0.75 })
+    await storage.savePolicyHistory([{ effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BY' }])
+    await storage.saveDayEntry({ date: '2026-05-15', status: 'remote-work', note: 'Altbestand' })
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const incompatibleFile = new File(
+      [
+        JSON.stringify({
+          schemaVersion: 2,
+          preferences: { language: 'en', theme: 'dark', warningThreshold: 0.6 },
+          policyHistory: [{ effectiveMonth: '1900-01', quota: 0.25, bundesland: 'NW' }],
+          entries: [{ date: '2026-05-13', status: 'office' }],
+          excludedDays: [],
+        }),
+      ],
+      'homie-invalid-restore.json',
+      { type: 'application/json' },
+    )
+
+    render(<App storage={storage} today="2026-05-15" />)
+
+    fireEvent.change(await screen.findByLabelText('JSON wiederherstellen'), {
+      target: {
+        files: [incompatibleFile],
+      },
+    })
+
+    await waitFor(async () => {
+      expect(confirmSpy).toHaveBeenCalledTimes(1)
+      expect(screen.getByRole('alert')).toHaveTextContent(/schema version 2/i)
+      expect(screen.getByRole('region', { name: 'Regelverlauf' })).toBeInTheDocument()
+
+      const unchangedCell = screen.getByRole('gridcell', { name: /15 Freitag/i })
+      expect(within(unchangedCell).getByText('Mobiles Arbeiten')).toBeInTheDocument()
+
+      await expect(storage.load()).resolves.toMatchObject({
+        preferences: { language: 'de', theme: 'system', warningThreshold: 0.75 },
+        entries: [{ date: '2026-05-15', status: 'remote-work', note: 'Altbestand' }],
+      })
+    })
+  })
+
+  it('shows a clear restore error for malformed JSON and keeps the current state untouched', async () => {
+    const storage = createTestStorage()
+    await storage.savePreferences({ language: 'de', theme: 'system', warningThreshold: 0.75 })
+    await storage.savePolicyHistory([{ effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BY' }])
+    await storage.saveDayEntry({ date: '2026-05-15', status: 'remote-work', note: 'Altbestand' })
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const malformedFile = new File(['{"schemaVersion":'], 'homie-malformed.json', {
+      type: 'application/json',
+    })
+
+    render(<App storage={storage} today="2026-05-15" />)
+
+    fireEvent.change(await screen.findByLabelText('JSON wiederherstellen'), {
+      target: {
+        files: [malformedFile],
+      },
+    })
+
+    await waitFor(async () => {
+      expect(screen.getByRole('alert')).toHaveTextContent('JSON-Datei ist ungültig.')
+      expect(screen.getByRole('region', { name: 'Regelverlauf' })).toBeInTheDocument()
+
+      const unchangedCell = screen.getByRole('gridcell', { name: /15 Freitag/i })
+      expect(within(unchangedCell).getByText('Mobiles Arbeiten')).toBeInTheDocument()
+
+      await expect(storage.load()).resolves.toMatchObject({
+        preferences: { language: 'de', theme: 'system', warningThreshold: 0.75 },
+        entries: [{ date: '2026-05-15', status: 'remote-work', note: 'Altbestand' }],
+      })
+    })
+  })
+
+  it('round-trips the full state through export and restore', async () => {
+    const storage = createTestStorage()
+    await storage.savePreferences({ language: 'de', theme: 'system', warningThreshold: 0.75 })
+    await storage.savePolicyHistory([{ effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BY' }])
+    await storage.saveDayEntry({ date: '2026-05-15', status: 'remote-work', note: 'Original' })
+    await storage.saveExcludedDays(['2026-05-05'])
+
+    const createObjectUrlSpy = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation(() => 'blob:homie-roundtrip')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<App storage={storage} today="2026-05-15" />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'JSON exportieren' }))
+
+    await waitFor(() => {
+      expect(createObjectUrlSpy).toHaveBeenCalledTimes(1)
+    })
+
+    const [exportedBlob] = createObjectUrlSpy.mock.calls[0] ?? []
+    const exportedJson = await (exportedBlob as Blob).text()
+
+    fireEvent.click(screen.getByLabelText('English'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Policy History' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('gridcell', { name: /13 Wednesday/i }).querySelector('button') as HTMLElement)
+
+    await waitFor(() => {
+      expect(within(screen.getByRole('gridcell', { name: /13 Wednesday/i })).getByText('Remote Work')).toBeInTheDocument()
+    })
+
+    fireEvent.change(screen.getByLabelText('Restore JSON'), {
+      target: {
+        files: [new File([exportedJson], 'homie-roundtrip.json', { type: 'application/json' })],
+      },
+    })
+
+    await waitFor(async () => {
+      expect(screen.getByRole('region', { name: 'Regelverlauf' })).toBeInTheDocument()
+      expect(screen.getByLabelText('Warnschwelle')).toHaveValue(75)
+      expect(within(screen.getByRole('gridcell', { name: /15 Freitag/i })).getByText('Mobiles Arbeiten')).toBeInTheDocument()
+      expect(within(screen.getByRole('gridcell', { name: /13 Mittwoch/i })).getByText('Leer')).toBeInTheDocument()
+
+      await expect(storage.load()).resolves.toEqual({
+        schemaVersion: 1,
+        preferences: { language: 'de', theme: 'system', warningThreshold: 0.75 },
+        policyHistory: [
+          { effectiveMonth: '1900-01', quota: 0.4, bundesland: 'BY' },
+          { effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BY' },
+        ],
+        entries: [{ date: '2026-05-15', status: 'remote-work', note: 'Original' }],
+        excludedDays: ['2026-05-05'],
+      })
+    })
   })
 
   it('switches the UI language immediately between German and English', async () => {

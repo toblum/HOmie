@@ -234,6 +234,61 @@
   outline-offset: 2px;
 }
 
+.backup-panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(31, 75, 153, 0.12);
+  background:
+    linear-gradient(135deg, rgba(31, 75, 153, 0.08), rgba(36, 107, 91, 0.1)),
+    rgba(255, 255, 255, 0.82);
+}
+
+.backup-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.backup-copy strong {
+  font-size: 1rem;
+  color: var(--text-h);
+}
+
+.backup-copy p {
+  margin: 0;
+  color: #607084;
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.file-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-feedback {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  font-weight: 600;
+}
+
+.settings-feedback-success {
+  background: rgba(36, 107, 91, 0.14);
+  color: #1d5b4f;
+}
+
+.settings-feedback-error {
+  background: rgba(169, 58, 44, 0.12);
+  color: #8b2c20;
+}
+
 .policy-history-list {
   display: grid;
   gap: 0.75rem;
@@ -671,6 +726,10 @@
 
 .ghost-button,
 .primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   border-radius: 999px;
   padding: 0.7rem 1.05rem;
   font: inherit;
@@ -715,6 +774,7 @@
 :root[data-theme='dark'] .summary-metric dt,
 :root[data-theme='dark'] .usage-label,
 :root[data-theme='dark'] .settings-fieldset legend,
+:root[data-theme='dark'] .backup-copy p,
 :root[data-theme='dark'] .policy-history-item span,
 :root[data-theme='dark'] .year-card-policy,
 :root[data-theme='dark'] .day-weekday,
@@ -727,6 +787,7 @@
 :root[data-theme='dark'] .policy-chip,
 :root[data-theme='dark'] .summary-metric,
 :root[data-theme='dark'] .settings-fieldset,
+:root[data-theme='dark'] .backup-panel,
 :root[data-theme='dark'] .settings-choice,
 :root[data-theme='dark'] .settings-field input,
 :root[data-theme='dark'] .settings-field select,
@@ -739,6 +800,16 @@
   color: var(--text);
   border-color: var(--border);
   background: rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme='dark'] .settings-feedback-success {
+  background: rgba(89, 187, 155, 0.16);
+  color: #b8f2e5;
+}
+
+:root[data-theme='dark'] .settings-feedback-error {
+  background: rgba(214, 84, 63, 0.18);
+  color: #ffc8bf;
 }
 
 :root[data-theme='dark'] .usage-panel {
