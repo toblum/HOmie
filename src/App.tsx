@@ -360,16 +360,43 @@ async function ensurePolicyHistory(
   storage: BrowserStorage,
   state: BrowserStorageState,
 ): Promise<BrowserStorageState> {
-  if (state.policyHistory.length > 0) {
+  const normalizedPolicyHistory = normalizePolicyHistory(state.policyHistory)
+
+  if (normalizedPolicyHistory === state.policyHistory) {
     return state
   }
 
-  await storage.savePolicyHistory([DEFAULT_POLICY_ENTRY])
+  await storage.savePolicyHistory(normalizedPolicyHistory)
 
   return {
     ...state,
-    policyHistory: [DEFAULT_POLICY_ENTRY],
+    policyHistory: normalizedPolicyHistory,
   }
+}
+
+function normalizePolicyHistory(policyHistory: PolicyHistoryEntry[]): PolicyHistoryEntry[] {
+  if (policyHistory.length === 0) {
+    return [DEFAULT_POLICY_ENTRY]
+  }
+
+  const sortedPolicyHistory = [...policyHistory].sort((left, right) =>
+    left.effectiveMonth.localeCompare(right.effectiveMonth),
+  )
+  const earliestEntry = sortedPolicyHistory[0]
+
+  if (!earliestEntry || earliestEntry.effectiveMonth <= DEFAULT_POLICY_ENTRY.effectiveMonth) {
+    return sortedPolicyHistory.every((entry, index) => entry === policyHistory[index])
+      ? policyHistory
+      : sortedPolicyHistory
+  }
+
+  return [
+    {
+      ...earliestEntry,
+      effectiveMonth: DEFAULT_POLICY_ENTRY.effectiveMonth,
+    },
+    ...sortedPolicyHistory,
+  ]
 }
 
 function buildCalendarMonthViewModel(

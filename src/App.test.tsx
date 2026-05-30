@@ -296,6 +296,32 @@ describe('App', () => {
     expect(screen.getByRole('grid', { name: 'Monatsübersicht' })).toBeInTheDocument()
   })
 
+  it('keeps month navigation working when the first policy-history entry starts after the target month', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([{ effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BE' }])
+
+    render(<App storage={storage} today="2026-01-15" />)
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Januar 2026',
+      }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vorheriger Monat' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Dezember 2025',
+      }),
+    ).toBeInTheDocument()
+
+    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
+    expectSummaryMetric(summaryPanel, 'Kontingent', '8')
+  })
+
   it('cycles a working day through the status cycle and reloads the persisted value', async () => {
     const storage = createTestStorage()
     const view = render(<App storage={storage} today="2026-05-15" />)
