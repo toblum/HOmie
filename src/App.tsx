@@ -17,21 +17,13 @@ import {
 import type { DayClassification, IsoDate } from './domain/types'
 import {
   createBrowserStorage,
+  BUNDESLAENDER,
   type BrowserStorage,
   type BrowserStorageState,
+  type PersonalPreferences,
 } from './storage/browserStorage'
 
 const DEFAULT_TODAY = toIsoDate(new Date())
-const MONTH_FORMATTER = new Intl.DateTimeFormat('de-DE', {
-  month: 'long',
-  year: 'numeric',
-})
-const WEEKDAY_FORMATTER = new Intl.DateTimeFormat('de-DE', { weekday: 'long' })
-const SHORT_WEEKDAY_FORMATTER = new Intl.DateTimeFormat('de-DE', { weekday: 'short' })
-const WEEKDAY_HEADERS = [1, 2, 3, 4, 5, 6, 0].map((weekday) => {
-  const referenceDate = new Date(2026, 0, 4 + weekday, 12)
-  return SHORT_WEEKDAY_FORMATTER.format(referenceDate).replace('.', '')
-})
 const STATUS_SEQUENCE: Array<DayEntryStatus | 'unset'> = [
   'unset',
   'remote-work',
@@ -39,30 +31,240 @@ const STATUS_SEQUENCE: Array<DayEntryStatus | 'unset'> = [
   'vacation',
   'sick',
 ]
-const STATUS_LABELS: Record<DayEntryStatus | 'unset', string> = {
-  unset: 'Leer',
-  'remote-work': 'Mobiles Arbeiten',
-  office: 'Büro',
-  vacation: 'Urlaub',
-  sick: 'Krank',
-}
-const DAY_KIND_LABELS: Record<DayClassification['kind'], string> = {
-  'working-day': 'Arbeitstag',
-  'overridden-working-day': 'Arbeitstag',
-  weekend: 'Wochenende',
-  'public-holiday': 'Feiertag',
-  'excluded-day': 'Ausschlusstag',
-}
-const MONTH_STATUS_LABELS: Record<MonthStatus, string> = {
-  normal: 'Normal',
-  warning: 'Warnung',
-  'over-limit': 'Über Limit',
-  'not-applicable': 'Nicht anwendbar',
-}
 const DEFAULT_POLICY_ENTRY: PolicyHistoryEntry = {
   effectiveMonth: '1900-01',
   quota: 0.6,
   bundesland: 'BE',
+}
+const LOCALE_BY_LANGUAGE: Record<PersonalPreferences['language'], string> = {
+  de: 'de-DE',
+  en: 'en-US',
+}
+
+type TranslationDictionary = {
+  monthOverview: string
+  yearOverview: string
+  loadingHeading: string
+  storageError: string
+  monthLead: string
+  yearLead: string
+  previousMonth: string
+  nextMonth: string
+  previousYear: string
+  nextYear: string
+  previousMonthButton: string
+  nextMonthButton: string
+  previousYearButton: string
+  nextYearButton: string
+  monthlyStatus: string
+  openYearOverview: string
+  openMonthOverview: string
+  yearCardsCount: string
+  policyPerMonth: string
+  evaluation: string
+  workingDays: string
+  quota: string
+  federalState: string
+  allowance: string
+  remoteWork: string
+  office: string
+  absence: string
+  openWorkingDays: string
+  usage: string
+  usageSummary: (input: { remoteWorkDays: number; allowance: number }) => string
+  monthView: string
+  monthGrid: string
+  personalSettings: string
+  policyHistory: string
+  settings: string
+  language: string
+  theme: string
+  german: string
+  english: string
+  themeLight: string
+  themeDark: string
+  themeSystem: string
+  warningThreshold: string
+  effectiveMonth: string
+  booking: string
+  planning: string
+  detailView: string
+  editDay: string
+  status: string
+  note: string
+  cancel: string
+  save: string
+  addEntry: string
+  openMonth: (heading: string) => string
+}
+
+const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionary> = {
+  de: {
+    monthOverview: 'Monatsübersicht',
+    yearOverview: 'Jahresübersicht',
+    loadingHeading: 'HOmie wird geladen',
+    storageError: 'Speicherfehler',
+    monthLead: 'Primäre Arbeitsfläche für Planung und Buchung mit sofortiger Speicherung in IndexedDB.',
+    yearLead: 'Jahresweite Auswertung mit einem Monatsstand pro Karte und direktem Sprung zurück in die Monatsübersicht.',
+    previousMonth: 'Vorheriger Monat',
+    nextMonth: 'Nächster Monat',
+    previousYear: 'Vorheriges Jahr',
+    nextYear: 'Nächstes Jahr',
+    previousMonthButton: 'Zurück',
+    nextMonthButton: 'Weiter',
+    previousYearButton: 'Vorjahr',
+    nextYearButton: 'Folgejahr',
+    monthlyStatus: 'Monatsstand',
+    openYearOverview: 'Jahresübersicht öffnen',
+    openMonthOverview: 'Monatsübersicht öffnen',
+    yearCardsCount: '12 Monatskarten',
+    policyPerMonth: 'Regelverlauf wird pro Monat separat aufgelöst.',
+    evaluation: 'Auswertung',
+    workingDays: 'Arbeitstage',
+    quota: 'Quote',
+    federalState: 'Bundesland',
+    allowance: 'Kontingent',
+    remoteWork: 'Mobiles Arbeiten',
+    office: 'Büro',
+    absence: 'Abwesenheit',
+    openWorkingDays: 'Offene Arbeitstage',
+    usage: 'Verbrauch',
+    usageSummary: ({ remoteWorkDays, allowance }) =>
+      `${remoteWorkDays} von ${allowance} möglichen Mobiles-Arbeiten-Tagen genutzt.`,
+    monthView: 'Monatsansicht',
+    monthGrid: 'Monatsübersicht',
+    personalSettings: 'Persönliche Einstellungen',
+    policyHistory: 'Regelverlauf',
+    settings: 'Einstellungen',
+    language: 'Sprache',
+    theme: 'Thema',
+    german: 'Deutsch',
+    english: 'English',
+    themeLight: 'Hell',
+    themeDark: 'Dunkel',
+    themeSystem: 'System',
+    warningThreshold: 'Warnschwelle',
+    effectiveMonth: 'Wirksamkeitsmonat',
+    booking: 'Buchung',
+    planning: 'Planung',
+    detailView: 'Detailansicht',
+    editDay: 'Tag bearbeiten',
+    status: 'Status',
+    note: 'Notiz',
+    cancel: 'Abbrechen',
+    save: 'Speichern',
+    addEntry: 'Eintrag hinzufügen',
+    openMonth: (heading) => `${heading} öffnen`,
+  },
+  en: {
+    monthOverview: 'Monthly Overview',
+    yearOverview: 'Yearly Overview',
+    loadingHeading: 'HOmie is loading',
+    storageError: 'Storage error',
+    monthLead: 'Primary workspace for planning and booking with immediate persistence to IndexedDB.',
+    yearLead: 'Year-wide evaluation with one monthly status per card and a direct jump back into the monthly overview.',
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
+    previousYear: 'Previous year',
+    nextYear: 'Next year',
+    previousMonthButton: 'Back',
+    nextMonthButton: 'Next',
+    previousYearButton: 'Previous year',
+    nextYearButton: 'Next year',
+    monthlyStatus: 'Monthly status',
+    openYearOverview: 'Open yearly overview',
+    openMonthOverview: 'Open monthly overview',
+    yearCardsCount: '12 month cards',
+    policyPerMonth: 'Policy history resolves independently for each month.',
+    evaluation: 'Evaluation',
+    workingDays: 'Working days',
+    quota: 'Quota',
+    federalState: 'Federal state',
+    allowance: 'Allowance',
+    remoteWork: 'Remote Work',
+    office: 'Office',
+    absence: 'Absence',
+    openWorkingDays: 'Open working days',
+    usage: 'Usage',
+    usageSummary: ({ remoteWorkDays, allowance }) =>
+      `${remoteWorkDays} of ${allowance} available remote-work days used.`,
+    monthView: 'Month view',
+    monthGrid: 'Monthly overview',
+    personalSettings: 'Personal Settings',
+    policyHistory: 'Policy History',
+    settings: 'Settings',
+    language: 'Language',
+    theme: 'Theme',
+    german: 'Deutsch',
+    english: 'English',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    themeSystem: 'System',
+    warningThreshold: 'Warning threshold',
+    effectiveMonth: 'Effective month',
+    booking: 'Booking',
+    planning: 'Plan',
+    detailView: 'Detail view',
+    editDay: 'Edit day',
+    status: 'Status',
+    note: 'Note',
+    cancel: 'Cancel',
+    save: 'Save',
+    addEntry: 'Add entry',
+    openMonth: (heading) => `Open ${heading}`,
+  },
+}
+
+const STATUS_LABELS: Record<
+  PersonalPreferences['language'],
+  Record<DayEntryStatus | 'unset', string>
+> = {
+  de: {
+    unset: 'Leer',
+    'remote-work': 'Mobiles Arbeiten',
+    office: 'Büro',
+    vacation: 'Urlaub',
+    sick: 'Krank',
+  },
+  en: {
+    unset: 'Unset',
+    'remote-work': 'Remote Work',
+    office: 'Office',
+    vacation: 'Vacation',
+    sick: 'Sick',
+  },
+}
+
+const DAY_KIND_LABELS: Record<PersonalPreferences['language'], Record<DayClassification['kind'], string>> = {
+  de: {
+    'working-day': 'Arbeitstag',
+    'overridden-working-day': 'Arbeitstag',
+    weekend: 'Wochenende',
+    'public-holiday': 'Feiertag',
+    'excluded-day': 'Ausschlusstag',
+  },
+  en: {
+    'working-day': 'Working day',
+    'overridden-working-day': 'Working day',
+    weekend: 'Weekend',
+    'public-holiday': 'Public holiday',
+    'excluded-day': 'Excluded day',
+  },
+}
+
+const MONTH_STATUS_LABELS: Record<PersonalPreferences['language'], Record<MonthStatus, string>> = {
+  de: {
+    normal: 'Normal',
+    warning: 'Warnung',
+    'over-limit': 'Über Limit',
+    'not-applicable': 'Nicht anwendbar',
+  },
+  en: {
+    normal: 'Normal',
+    warning: 'Warning',
+    'over-limit': 'Over limit',
+    'not-applicable': 'Not applicable',
+  },
 }
 const DEFAULT_STORAGE = createBrowserStorage()
 
@@ -70,7 +272,7 @@ interface CalendarDayViewModel {
   classification: DayClassification
   entry?: DayEntry
   isInteractive: boolean
-  temporalLabel: 'Planung' | 'Buchung'
+  temporalLabel: string
   statusLabel: string
   tone: 'empty' | 'remote-work' | 'office' | 'vacation' | 'sick' | 'non-working'
 }
@@ -112,6 +314,8 @@ interface HomieAppState {
   detailStatus: DayEntryStatus | 'unset'
   detailNote: string
   initialize: (input: { storage: BrowserStorage; today: IsoDate }) => Promise<void>
+  updatePreferences: (preferences: Partial<PersonalPreferences>) => Promise<void>
+  addPolicyHistoryEntry: (entry: PolicyHistoryEntry) => Promise<void>
   navigateMonth: (offset: number) => void
   navigateYear: (offset: number) => void
   openYearOverview: () => void
@@ -177,6 +381,52 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
         error: error instanceof Error ? error.message : 'Monatsübersicht konnte nicht geladen werden',
       })
     }
+  },
+  async updatePreferences(preferences) {
+    const { snapshot, storage } = get()
+
+    if (!snapshot) {
+      return
+    }
+
+    const nextPreferences = {
+      ...snapshot.preferences,
+      ...preferences,
+    }
+
+    await storage.savePreferences(nextPreferences)
+
+    set({
+      snapshot: {
+        ...snapshot,
+        preferences: nextPreferences,
+      },
+    })
+  },
+  async addPolicyHistoryEntry(entry) {
+    const { snapshot, storage } = get()
+
+    if (!snapshot) {
+      return
+    }
+
+    const latestEntry = snapshot.policyHistory[snapshot.policyHistory.length - 1] ?? DEFAULT_POLICY_ENTRY
+    const minimumEffectiveMonth = shiftMonthKey(latestEntry.effectiveMonth, 1)
+
+    if (entry.effectiveMonth < minimumEffectiveMonth) {
+      return
+    }
+
+    const nextPolicyHistory = normalizePolicyHistory([...snapshot.policyHistory, entry])
+
+    await storage.savePolicyHistory(nextPolicyHistory)
+
+    set({
+      snapshot: {
+        ...snapshot,
+        policyHistory: nextPolicyHistory,
+      },
+    })
   },
   navigateMonth(offset) {
     const { selectedMonth } = get()
@@ -403,6 +653,7 @@ function buildCalendarMonthViewModel(
   monthKey: EffectiveMonth,
   today: IsoDate,
   snapshot: BrowserStorageState,
+  language: PersonalPreferences['language'],
 ): CalendarMonthViewModel {
   const { year, month } = parseMonthKey(monthKey)
   const policy = resolvePolicyForMonth({
@@ -427,9 +678,9 @@ function buildCalendarMonthViewModel(
   const entryByDate = new Map(snapshot.entries.map((entry) => [entry.date, entry]))
 
   return {
-    heading: capitalizeMonthHeading(MONTH_FORMATTER.format(new Date(year, month - 1, 1))),
+    heading: formatMonthHeading(year, month, language),
     leadingBlankCount: getFirstWeekdayOffset(monthKey),
-    weekdayHeaders: WEEKDAY_HEADERS,
+    weekdayHeaders: getWeekdayHeaders(language),
     policy,
     evaluation,
     days: classifications.map((classification) => {
@@ -440,8 +691,8 @@ function buildCalendarMonthViewModel(
       return {
         classification,
         isInteractive,
-        temporalLabel: classification.date <= today ? 'Buchung' : 'Planung',
-        statusLabel: STATUS_LABELS[entry?.status ?? 'unset'],
+        temporalLabel: classification.date <= today ? TRANSLATIONS[language].booking : TRANSLATIONS[language].planning,
+        statusLabel: STATUS_LABELS[language][entry?.status ?? 'unset'],
         tone: getDayTone(classification, entry),
         ...(entry ? { entry } : {}),
       }
@@ -451,6 +702,44 @@ function buildCalendarMonthViewModel(
 
 function capitalizeMonthHeading(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function formatMonthHeading(
+  year: number,
+  month: number,
+  language: PersonalPreferences['language'],
+): string {
+  return capitalizeMonthHeading(
+    new Intl.DateTimeFormat(LOCALE_BY_LANGUAGE[language], {
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(year, month - 1, 1)),
+  )
+}
+
+function getWeekdayHeaders(language: PersonalPreferences['language']): string[] {
+  const formatter = new Intl.DateTimeFormat(LOCALE_BY_LANGUAGE[language], { weekday: 'short' })
+
+  return [1, 2, 3, 4, 5, 6, 0].map((weekday) => {
+    const referenceDate = new Date(2026, 0, 4 + weekday, 12)
+    return formatter.format(referenceDate).replace('.', '')
+  })
+}
+
+function resolveThemePreference(theme: PersonalPreferences['theme']): 'light' | 'dark' {
+  if (theme === 'light' || theme === 'dark') {
+    return theme
+  }
+
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  ) {
+    return 'dark'
+  }
+
+  return 'light'
 }
 
 function shiftMonthKey(monthKey: EffectiveMonth, offset: number): EffectiveMonth {
@@ -469,12 +758,13 @@ function buildYearOverviewViewModel(
   year: number,
   today: IsoDate,
   snapshot: BrowserStorageState,
+  language: PersonalPreferences['language'],
 ): YearOverviewViewModel {
   return {
     year,
     cards: Array.from({ length: 12 }, (_, index) => {
       const monthKey = `${year}-${String(index + 1).padStart(2, '0')}` as EffectiveMonth
-      const calendar = buildCalendarMonthViewModel(monthKey, today, snapshot)
+      const calendar = buildCalendarMonthViewModel(monthKey, today, snapshot, language)
       const monthStatus = classifyMonthStatus({
         evaluation: calendar.evaluation,
         warningThreshold: snapshot.preferences.warningThreshold,
@@ -502,12 +792,16 @@ function getDayTone(
   return entry?.status ?? 'empty'
 }
 
-function formatWeekday(date: IsoDate): string {
-  return capitalizeMonthHeading(WEEKDAY_FORMATTER.format(new Date(`${date}T12:00:00`)))
+function formatWeekday(date: IsoDate, language: PersonalPreferences['language']): string {
+  return capitalizeMonthHeading(
+    new Intl.DateTimeFormat(LOCALE_BY_LANGUAGE[language], { weekday: 'long' }).format(
+      new Date(`${date}T12:00:00`),
+    ),
+  )
 }
 
-function formatFullDate(date: IsoDate): string {
-  return new Intl.DateTimeFormat('de-DE', {
+function formatFullDate(date: IsoDate, language: PersonalPreferences['language']): string {
+  return new Intl.DateTimeFormat(LOCALE_BY_LANGUAGE[language], {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
@@ -526,6 +820,8 @@ function getDayNumber(date: IsoDate): string {
 function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   const {
     initialize,
+    updatePreferences,
+    addPolicyHistoryEntry,
     navigateMonth,
     navigateYear,
     openYearOverview,
@@ -552,6 +848,31 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     void initialize({ storage, today })
   }, [initialize, storage, today])
 
+  useEffect(() => {
+    if (!snapshot) {
+      return
+    }
+
+    const theme = snapshot.preferences.theme
+
+    const applyTheme = () => {
+      const resolvedTheme = resolveThemePreference(theme)
+      document.documentElement.dataset.theme = resolvedTheme
+      document.documentElement.dataset.themePreference = theme
+      document.documentElement.style.colorScheme = resolvedTheme
+    }
+
+    applyTheme()
+
+    if (theme === 'system' && typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      mediaQuery.addEventListener('change', applyTheme)
+      return () => {
+        mediaQuery.removeEventListener('change', applyTheme)
+      }
+    }
+  }, [snapshot])
+
   if (error) {
     return (
       <main className="app-shell loading-state">
@@ -571,23 +892,29 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     )
   }
 
-  const calendar = buildCalendarMonthViewModel(selectedMonth, today, snapshot)
+  const language = snapshot.preferences.language
+  const t = TRANSLATIONS[language]
+  const monthStatusLabels = MONTH_STATUS_LABELS[language]
+  const dayKindLabels = DAY_KIND_LABELS[language]
+  const calendar = buildCalendarMonthViewModel(selectedMonth, today, snapshot, language)
+  const latestPolicyEntry = snapshot.policyHistory[snapshot.policyHistory.length - 1] ?? DEFAULT_POLICY_ENTRY
+  const minimumNextPolicyMonth = shiftMonthKey(latestPolicyEntry.effectiveMonth, 1)
   const monthStatus = classifyMonthStatus({
     evaluation: calendar.evaluation,
     warningThreshold: snapshot.preferences.warningThreshold,
   })
-  const yearOverview = buildYearOverviewViewModel(selectedYear, today, snapshot)
+  const yearOverview = buildYearOverviewViewModel(selectedYear, today, snapshot, language)
 
   return (
     <main className="app-shell">
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">{viewMode === 'month' ? 'Monatsübersicht' : 'Jahresübersicht'}</p>
+          <p className="eyebrow">{viewMode === 'month' ? t.monthOverview : t.yearOverview}</p>
           <div className="hero-heading-row">
             <button
               type="button"
               className="month-nav-button"
-              aria-label={viewMode === 'month' ? 'Vorheriger Monat' : 'Vorheriges Jahr'}
+              aria-label={viewMode === 'month' ? t.previousMonth : t.previousYear}
               onClick={() => {
                 if (viewMode === 'month') {
                   navigateMonth(-1)
@@ -597,13 +924,13 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 navigateYear(-1)
               }}
             >
-              {viewMode === 'month' ? 'Zurück' : 'Vorjahr'}
+              {viewMode === 'month' ? t.previousMonthButton : t.previousYearButton}
             </button>
             <h1>{viewMode === 'month' ? calendar.heading : String(yearOverview.year)}</h1>
             <button
               type="button"
               className="month-nav-button"
-              aria-label={viewMode === 'month' ? 'Nächster Monat' : 'Nächstes Jahr'}
+              aria-label={viewMode === 'month' ? t.nextMonth : t.nextYear}
               onClick={() => {
                 if (viewMode === 'month') {
                   navigateMonth(1)
@@ -613,13 +940,11 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 navigateYear(1)
               }}
             >
-              {viewMode === 'month' ? 'Weiter' : 'Folgejahr'}
+              {viewMode === 'month' ? t.nextMonthButton : t.nextYearButton}
             </button>
           </div>
           <p className="lead">
-            {viewMode === 'month'
-              ? 'Primäre Arbeitsfläche für Planung und Buchung mit sofortiger Speicherung in IndexedDB.'
-              : 'Jahresweite Auswertung mit einem Monatsstand pro Karte und direktem Sprung zurück in die Monatsübersicht.'}
+            {viewMode === 'month' ? t.monthLead : t.yearLead}
           </p>
         </div>
 
@@ -627,21 +952,21 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
           {viewMode === 'month' ? (
             <>
               <div className={`status-pill status-${monthStatus}`}>
-                Monatsstand {MONTH_STATUS_LABELS[monthStatus]}
+                {t.monthlyStatus} {monthStatusLabels[monthStatus]}
               </div>
               <p className="policy-chip">
-                Quote {Math.round(calendar.policy.quota * 100)} % · Bundesland {calendar.policy.bundesland}
+                {t.quota} {Math.round(calendar.policy.quota * 100)} % · {t.federalState} {calendar.policy.bundesland}
               </p>
               <button type="button" className="hero-toggle-button" onClick={openYearOverview}>
-                Jahresübersicht öffnen
+                {t.openYearOverview}
               </button>
             </>
           ) : (
             <>
-              <div className="status-pill">12 Monatskarten</div>
-              <p className="policy-chip">Regelverlauf wird pro Monat separat aufgelöst.</p>
+              <div className="status-pill">{t.yearCardsCount}</div>
+              <p className="policy-chip">{t.policyPerMonth}</p>
               <button type="button" className="hero-toggle-button" onClick={openMonthOverview}>
-                Monatsübersicht öffnen
+                {t.openMonthOverview}
               </button>
             </>
           )}
@@ -650,42 +975,42 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
 
       {viewMode === 'month' ? (
         <>
-          <section className="summary-panel" aria-label="Monatsstand">
+          <section className="summary-panel" aria-label={t.monthlyStatus}>
             <div className="summary-panel-head">
               <div>
-                <p className="eyebrow">Auswertung</p>
-                <h2>Monatsstand</h2>
+                <p className="eyebrow">{t.evaluation}</p>
+                <h2>{t.monthlyStatus}</h2>
               </div>
               <div className={`status-pill status-${monthStatus}`}>
-                {MONTH_STATUS_LABELS[monthStatus]}
+                {monthStatusLabels[monthStatus]}
               </div>
             </div>
 
             <dl className="summary-grid">
               <div className="summary-metric">
-                <dt>Arbeitstage</dt>
+                <dt>{t.workingDays}</dt>
                 <dd>{calendar.evaluation.workingDays}</dd>
               </div>
               <div className="summary-metric">
-                <dt>Kontingent</dt>
+                <dt>{t.allowance}</dt>
                 <dd>{calendar.evaluation.allowance}</dd>
               </div>
               <div className="summary-metric summary-metric-wide">
-                <dt>Mobiles Arbeiten</dt>
+                <dt>{t.remoteWork}</dt>
                 <dd>
                   {calendar.evaluation.remoteWorkDays} / {calendar.evaluation.allowance}
                 </dd>
               </div>
               <div className="summary-metric">
-                <dt>Büro</dt>
+                <dt>{t.office}</dt>
                 <dd>{calendar.evaluation.officeDays}</dd>
               </div>
               <div className="summary-metric">
-                <dt>Abwesenheit</dt>
+                <dt>{t.absence}</dt>
                 <dd>{calendar.evaluation.absenceDays}</dd>
               </div>
               <div className="summary-metric summary-metric-wide">
-                <dt>Offene Arbeitstage</dt>
+                <dt>{t.openWorkingDays}</dt>
                 <dd>{calendar.evaluation.openWorkingDays}</dd>
               </div>
             </dl>
@@ -693,18 +1018,15 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
             <div className="usage-panel">
               <div className="usage-copy">
                 <div>
-                  <p className="usage-label">Verbrauch</p>
+                  <p className="usage-label">{t.usage}</p>
                   <strong>{formatUsagePercentage(calendar.evaluation.usagePercentage)}</strong>
                 </div>
-                <p>
-                  {calendar.evaluation.remoteWorkDays} von {calendar.evaluation.allowance} möglichen
-                  Mobiles-Arbeiten-Tagen genutzt.
-                </p>
+                <p>{t.usageSummary(calendar.evaluation)}</p>
               </div>
               <div
                 className="usage-meter"
                 role="progressbar"
-                aria-label="Verbrauch"
+                aria-label={t.usage}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.max(
@@ -722,14 +1044,211 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
             </div>
           </section>
 
-          <section className="calendar-panel" aria-label="Monatsansicht">
+          <section className="settings-panel" aria-label={t.personalSettings}>
+            <div className="summary-panel-head">
+              <div>
+                <p className="eyebrow">{t.settings}</p>
+                <h2>{t.personalSettings}</h2>
+              </div>
+            </div>
+
+            <fieldset className="settings-fieldset">
+              <legend>{t.language}</legend>
+              <label className="settings-choice">
+                <input
+                  type="radio"
+                  name="language"
+                  checked={snapshot.preferences.language === 'de'}
+                  onChange={() => {
+                    void updatePreferences({ language: 'de' })
+                  }}
+                />
+                <span>{t.german}</span>
+              </label>
+              <label className="settings-choice">
+                <input
+                  type="radio"
+                  name="language"
+                  checked={snapshot.preferences.language === 'en'}
+                  onChange={() => {
+                    void updatePreferences({ language: 'en' })
+                  }}
+                />
+                <span>{t.english}</span>
+              </label>
+            </fieldset>
+
+            <fieldset className="settings-fieldset">
+              <legend>{t.theme}</legend>
+              <label className="settings-choice">
+                <input
+                  type="radio"
+                  name="theme"
+                  checked={snapshot.preferences.theme === 'light'}
+                  onChange={() => {
+                    void updatePreferences({ theme: 'light' })
+                  }}
+                />
+                <span>{t.themeLight}</span>
+              </label>
+              <label className="settings-choice">
+                <input
+                  type="radio"
+                  name="theme"
+                  checked={snapshot.preferences.theme === 'dark'}
+                  onChange={() => {
+                    void updatePreferences({ theme: 'dark' })
+                  }}
+                />
+                <span>{t.themeDark}</span>
+              </label>
+              <label className="settings-choice">
+                <input
+                  type="radio"
+                  name="theme"
+                  checked={snapshot.preferences.theme === 'system'}
+                  onChange={() => {
+                    void updatePreferences({ theme: 'system' })
+                  }}
+                />
+                <span>{t.themeSystem}</span>
+              </label>
+            </fieldset>
+
+            <label className="settings-field">
+              <span>{t.warningThreshold}</span>
+              <input
+                aria-label={t.warningThreshold}
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={Math.round(snapshot.preferences.warningThreshold * 100)}
+                onChange={(event) => {
+                  // Treat empty input as no-op to prevent accidentally resetting threshold to 0%
+                  if (event.target.value === '') {
+                    return
+                  }
+
+                  const nextValue = Number(event.target.value)
+
+                  if (Number.isNaN(nextValue) || nextValue < 0 || nextValue > 100) {
+                    return
+                  }
+
+                  void updatePreferences({ warningThreshold: nextValue / 100 })
+                }}
+              />
+            </label>
+          </section>
+
+          <section className="settings-panel" aria-label={t.policyHistory}>
+            <div className="summary-panel-head">
+              <div>
+                <p className="eyebrow">{t.policyHistory}</p>
+                <h2>{t.policyHistory}</h2>
+              </div>
+            </div>
+
+            <ol className="policy-history-list">
+              {snapshot.policyHistory.map((entry) => (
+                <li key={entry.effectiveMonth} className="policy-history-item">
+                  <strong>{entry.effectiveMonth}</strong>
+                  <span>
+                    {t.quota} {Math.round(entry.quota * 100)} % · {t.federalState} {entry.bundesland}
+                  </span>
+                </li>
+              ))}
+            </ol>
+
+            <form
+              key={`${latestPolicyEntry.effectiveMonth}-${latestPolicyEntry.quota}-${latestPolicyEntry.bundesland}`}
+              className="policy-form"
+              onSubmit={(event) => {
+                event.preventDefault()
+
+                if (!event.currentTarget.reportValidity()) {
+                  return
+                }
+
+                const formData = new FormData(event.currentTarget)
+                const quotaValue = Number(formData.get('quota'))
+                const bundeslandValue = formData.get('bundesland')
+                const effectiveMonthValue = formData.get('effectiveMonth')
+
+                if (
+                  !Number.isFinite(quotaValue) ||
+                  quotaValue < 0 ||
+                  quotaValue > 100 ||
+                  typeof bundeslandValue !== 'string' ||
+                  typeof effectiveMonthValue !== 'string' ||
+                  effectiveMonthValue < minimumNextPolicyMonth
+                ) {
+                  return
+                }
+
+                void addPolicyHistoryEntry({
+                  effectiveMonth: effectiveMonthValue as EffectiveMonth,
+                  quota: quotaValue / 100,
+                  bundesland: bundeslandValue as PolicyHistoryEntry['bundesland'],
+                })
+              }}
+            >
+              <label className="settings-field">
+                <span>{t.quota}</span>
+                <input
+                  name="quota"
+                  aria-label={t.quota}
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  required
+                  defaultValue={Math.round(latestPolicyEntry.quota * 100)}
+                />
+              </label>
+
+              <label className="settings-field">
+                <span>{t.federalState}</span>
+                <select
+                  name="bundesland"
+                  aria-label={t.federalState}
+                  defaultValue={latestPolicyEntry.bundesland}
+                >
+                  {BUNDESLAENDER.map((bundesland) => (
+                    <option key={bundesland} value={bundesland}>
+                      {bundesland}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="settings-field">
+                <span>{t.effectiveMonth}</span>
+                <input
+                  name="effectiveMonth"
+                  aria-label={t.effectiveMonth}
+                  type="month"
+                  min={minimumNextPolicyMonth}
+                  required
+                  defaultValue={minimumNextPolicyMonth}
+                />
+              </label>
+
+              <button type="submit" className="primary-button">
+                {t.addEntry}
+              </button>
+            </form>
+          </section>
+
+          <section className="calendar-panel" aria-label={t.monthView}>
             <div className="calendar-weekdays" aria-hidden="true">
               {calendar.weekdayHeaders.map((weekday) => (
                 <span key={weekday}>{weekday}</span>
               ))}
             </div>
 
-            <div className="calendar-grid" role="grid" aria-label="Monatsübersicht">
+            <div className="calendar-grid" role="grid" aria-label={t.monthGrid}>
               {Array.from({ length: calendar.leadingBlankCount }, (_, index) => (
                 <div key={`blank-${index}`} className="calendar-blank" aria-hidden="true" />
               ))}
@@ -738,7 +1257,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 <article
                   key={day.classification.date}
                   role="gridcell"
-                  aria-label={`${Number(getDayNumber(day.classification.date))} ${formatWeekday(day.classification.date)}`}
+                  aria-label={`${Number(getDayNumber(day.classification.date))} ${formatWeekday(day.classification.date, language)}`}
                   className={`day-card tone-${day.tone} kind-${day.classification.kind}`}
                 >
                   {day.isInteractive ? (
@@ -755,7 +1274,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                     >
                       <span className="day-topline">
                         <span className="day-number">{getDayNumber(day.classification.date)}</span>
-                        <span className="day-weekday">{formatWeekday(day.classification.date)}</span>
+                        <span className="day-weekday">{formatWeekday(day.classification.date, language)}</span>
                       </span>
                       <span className="day-phase">{day.temporalLabel}</span>
                       <strong className="day-status">{day.statusLabel}</strong>
@@ -765,10 +1284,10 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                     <div className="day-static">
                       <span className="day-topline">
                         <span className="day-number">{getDayNumber(day.classification.date)}</span>
-                        <span className="day-weekday">{formatWeekday(day.classification.date)}</span>
+                        <span className="day-weekday">{formatWeekday(day.classification.date, language)}</span>
                       </span>
                       <span className="day-phase">{day.temporalLabel}</span>
-                      <strong className="day-status">{DAY_KIND_LABELS[day.classification.kind]}</strong>
+                      <strong className="day-status">{dayKindLabels[day.classification.kind]}</strong>
                       {day.classification.holidayName ? (
                         <span className="day-note">{day.classification.holidayName}</span>
                       ) : null}
@@ -780,14 +1299,14 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
           </section>
         </>
       ) : (
-        <section className="year-panel" aria-label="Jahresübersicht">
+        <section className="year-panel" aria-label={t.yearOverview}>
           <div className="year-grid">
             {yearOverview.cards.map((card) => (
               <button
                 key={card.monthKey}
                 type="button"
                 className={`year-card status-${card.monthStatus}`}
-                aria-label={`${card.heading} öffnen`}
+                aria-label={t.openMonth(card.heading)}
                 onClick={() => {
                   selectMonth(card.monthKey)
                 }}
@@ -795,21 +1314,21 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 <span className="year-card-topline">
                   <span className="year-card-month">{card.heading}</span>
                   <span className={`status-pill status-${card.monthStatus}`}>
-                    {MONTH_STATUS_LABELS[card.monthStatus]}
+                    {monthStatusLabels[card.monthStatus]}
                   </span>
                 </span>
                 <span className="year-card-policy">
-                  Quote {Math.round(card.policy.quota * 100)} % · {card.policy.bundesland}
+                  {t.quota} {Math.round(card.policy.quota * 100)} % · {t.federalState} {card.policy.bundesland}
                 </span>
                 <dl className="year-card-metrics">
                   <div>
-                    <dt>Mobiles Arbeiten</dt>
+                    <dt>{t.remoteWork}</dt>
                     <dd>
                       {card.evaluation.remoteWorkDays} / {card.evaluation.allowance}
                     </dd>
                   </div>
                   <div>
-                    <dt>Büro</dt>
+                    <dt>{t.office}</dt>
                     <dd>{card.evaluation.officeDays}</dd>
                   </div>
                 </dl>
@@ -825,16 +1344,16 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
             className="detail-dialog"
             role="dialog"
             aria-modal="true"
-            aria-label="Tag bearbeiten"
+            aria-label={t.editDay}
           >
             <div className="detail-dialog-head">
-              <p className="eyebrow">Detailansicht</p>
-              <h2>Tag bearbeiten</h2>
-              <p className="lead dialog-date">{capitalizeMonthHeading(formatFullDate(detailDate))}</p>
+              <p className="eyebrow">{t.detailView}</p>
+              <h2>{t.editDay}</h2>
+              <p className="lead dialog-date">{capitalizeMonthHeading(formatFullDate(detailDate, language))}</p>
             </div>
 
             <fieldset className="detail-status-list">
-              <legend>Status</legend>
+              <legend>{t.status}</legend>
               {STATUS_SEQUENCE.map((status) => (
                 <label key={status} className="detail-status-option">
                   <input
@@ -845,15 +1364,15 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                       setDetailStatus(status)
                     }}
                   />
-                  <span>{STATUS_LABELS[status]}</span>
+                  <span>{STATUS_LABELS[language][status]}</span>
                 </label>
               ))}
             </fieldset>
 
             <label className="detail-note-field">
-              <span>Notiz</span>
+              <span>{t.note}</span>
               <textarea
-                aria-label="Notiz"
+                aria-label={t.note}
                 rows={4}
                 value={detailNote}
                 onChange={(event) => {
@@ -864,7 +1383,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
 
             <div className="detail-actions">
               <button type="button" className="ghost-button" onClick={closeDetailView}>
-                Abbrechen
+                {t.cancel}
               </button>
               <button
                 type="button"
@@ -873,7 +1392,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                   void saveDetailEntry()
                 }}
               >
-                Speichern
+                {t.save}
               </button>
             </div>
           </section>
