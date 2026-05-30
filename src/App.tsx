@@ -974,7 +974,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    setTimeout(() => URL.revokeObjectURL(downloadUrl), 100)
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 100) // defer revocation to avoid cancelled downloads in some browsers
   }
 
   const handleRestoreFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
