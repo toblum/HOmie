@@ -1125,6 +1125,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 step={1}
                 value={Math.round(snapshot.preferences.warningThreshold * 100)}
                 onChange={(event) => {
+                  // Treat empty input as no-op to prevent accidentally resetting threshold to 0%
                   if (event.target.value === '') {
                     return
                   }
