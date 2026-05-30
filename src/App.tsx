@@ -971,8 +971,10 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
 
     link.href = downloadUrl
     link.download = buildExportFilename(today)
+    document.body.appendChild(link)
     link.click()
-    URL.revokeObjectURL(downloadUrl)
+    document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 100)
   }
 
   const handleRestoreFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -981,6 +983,9 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     if (!file) {
       return
     }
+
+    setRestoreSuccess(null)
+    setRestoreError(null)
 
     if (!window.confirm(t.restoreWarning)) {
       event.target.value = ''
@@ -1253,13 +1258,13 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                   {t.exportJson}
                 </button>
 
-                <label className="ghost-button file-trigger">
+                <label className="ghost-button file-trigger" tabIndex={0}>
                   <span>{t.restoreJson}</span>
                   <input
                     aria-label={t.restoreJson}
                     type="file"
                     accept="application/json,.json"
-                    hidden
+                    className="visually-hidden"
                     onChange={(event) => {
                       void handleRestoreFileChange(event)
                     }}
