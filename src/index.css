@@ -1,14 +1,20 @@
 :root {
-  --text: #3c4050;
-  --text-h: #171923;
-  --bg: #f7f8fc;
-  --surface: #ffffff;
-  --border: #d7dceb;
-  --accent: #5856d6;
+  --text: #334155;
+  --text-h: #162032;
+  --muted: #637086;
+  --bg: #efe6d7;
+  --bg-deep: #f7f2e8;
+  --surface: rgba(255, 251, 245, 0.9);
+  --surface-strong: rgba(255, 255, 255, 0.94);
+  --border: rgba(70, 80, 99, 0.12);
+  --accent: #1f4b99;
+  --accent-strong: #143d73;
+  --accent-soft: rgba(64, 148, 180, 0.16);
   --shadow:
     0 12px 30px -18px rgba(30, 41, 59, 0.45), 0 10px 18px -24px rgba(15, 23, 42, 0.4);
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Avenir Next', 'Segoe UI', sans-serif;
+  --display: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
   font: 18px/1.5 var(--sans);
   color-scheme: light;
   color: var(--text);
@@ -19,17 +25,21 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #d9dfef;
-    --text-h: #f7f9fc;
-    --bg: #0f172a;
-    --surface: #162033;
-    --border: #2c3a56;
-    --accent: #a5b4fc;
-    --shadow:
-      0 12px 30px -18px rgba(15, 23, 42, 0.8), 0 10px 18px -24px rgba(15, 23, 42, 0.85);
-  }
+:root[data-theme='dark'] {
+  --text: #d9e2ee;
+  --text-h: #f7f4ed;
+  --muted: #9fb0c5;
+  --bg: #111b2a;
+  --bg-deep: #0c1320;
+  --surface: rgba(19, 28, 43, 0.88);
+  --surface-strong: rgba(23, 34, 52, 0.94);
+  --border: rgba(159, 176, 197, 0.16);
+  --accent: #85d3c8;
+  --accent-strong: #246b5b;
+  --accent-soft: rgba(36, 107, 91, 0.22);
+  --shadow:
+    0 18px 36px -22px rgba(0, 0, 0, 0.72), 0 8px 18px -16px rgba(0, 0, 0, 0.68);
+  color-scheme: dark;
 }
 
 #root {
@@ -44,12 +54,17 @@
 body {
   margin: 0;
   min-width: 320px;
+  background:
+    radial-gradient(circle at top left, var(--accent-soft), transparent 32%),
+    radial-gradient(circle at top right, rgba(248, 205, 74, 0.14), transparent 24%),
+    linear-gradient(180deg, var(--bg), var(--bg-deep));
 }
 
 h1,
 h2 {
   margin: 0;
   color: var(--text-h);
+  font-family: var(--display);
 }
 
 h1 {

@@ -116,6 +116,212 @@ describe('App', () => {
     expect(within(summaryPanel).getByText('Warnung')).toBeInTheDocument()
   })
 
+  it('updates the warning threshold immediately from personal settings and persists it', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([{ effectiveMonth: '1900-01', quota: 0.5, bundesland: 'BE' }])
+
+    for (const date of [
+      '2025-02-03',
+      '2025-02-04',
+      '2025-02-05',
+      '2025-02-06',
+      '2025-02-07',
+      '2025-02-10',
+      '2025-02-11',
+      '2025-02-12',
+    ] as const) {
+      await storage.saveDayEntry({ date, status: 'remote-work' })
+    }
+
+    render(<App storage={storage} today="2025-02-01" />)
+
+    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
+    expect(within(summaryPanel).getByText('Normal')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Warnschwelle'), {
+      target: { value: '75' },
+    })
+
+    await waitFor(async () => {
+      expect(within(summaryPanel).getByText('Warnung')).toBeInTheDocument()
+      await expect(storage.load()).resolves.toMatchObject({
+        preferences: {
+          warningThreshold: 0.75,
+        },
+      })
+    })
+
+    cleanup()
+    render(<App storage={storage} today="2025-02-01" />)
+
+    const reloadedSummary = await screen.findByRole('region', { name: 'Monatsstand' })
+    expect(within(reloadedSummary).getByText('Warnung')).toBeInTheDocument()
+    expect(screen.getByLabelText('Warnschwelle')).toHaveValue(75)
+  })
+
+  it('switches the UI language immediately between German and English', async () => {
+    const storage = createTestStorage()
+    const firstView = render(<App storage={storage} today="2025-02-01" />)
+
+    expect(
+      await screen.findByRole('button', { name: 'Jahresübersicht öffnen' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Monatsübersicht')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('English'))
+
+    expect(await screen.findByText('Monthly Overview')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open yearly overview' })).toBeInTheDocument()
+    expect(screen.getByRole('grid', { name: 'Monthly overview' })).toBeInTheDocument()
+    expect(screen.getByText('Remote Work')).toBeInTheDocument()
+    await expect(storage.load()).resolves.toMatchObject({
+      preferences: {
+        language: 'en',
+      },
+    })
+
+    firstView.unmount()
+    render(<App storage={storage} today="2025-02-01" />)
+
+    expect(await screen.findByText('Monthly Overview')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open yearly overview' })).toBeInTheDocument()
+  })
+
+  it('persists the theme preference and applies it on load', async () => {
+    const storage = createTestStorage()
+    const firstView = render(<App storage={storage} today="2025-02-01" />)
+
+    expect(
+      await screen.findByRole('button', { name: 'Jahresübersicht öffnen' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Dunkel'))
+
+    await waitFor(async () => {
+      expect(document.documentElement.dataset.theme).toBe('dark')
+      await expect(storage.load()).resolves.toMatchObject({
+        preferences: {
+          theme: 'dark',
+        },
+      })
+    })
+
+    firstView.unmount()
+    render(<App storage={storage} today="2025-02-01" />)
+
+    expect(
+      await screen.findByRole('button', { name: 'Jahresübersicht öffnen' }),
+    ).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe('dark')
+      expect(screen.getByRole('radio', { name: 'Dunkel' })).toBeChecked()
+    })
+  })
+
+  it('lists policy history chronologically, enforces the next effective month, and re-evaluates immediately after adding an entry', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([
+      { effectiveMonth: '1900-01', quota: 0.6, bundesland: 'BE' },
+      { effectiveMonth: '2025-01', quota: 0.5, bundesland: 'BE' },
+    ])
+
+    for (const date of [
+      '2025-02-03',
+      '2025-02-04',
+      '2025-02-05',
+      '2025-02-06',
+      '2025-02-07',
+    ] as const) {
+      await storage.saveDayEntry({ date, status: 'remote-work' })
+    }
+
+    const firstView = render(<App storage={storage} today="2025-02-01" />)
+    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
+    const policyHistory = screen.getByRole('region', { name: 'Regelverlauf' })
+
+    expectSummaryMetric(summaryPanel, 'Kontingent', '10')
+    expect(screen.getByLabelText('Wirksamkeitsmonat')).toHaveAttribute('min', '2025-02')
+
+    const entriesBefore = within(policyHistory).getAllByRole('listitem')
+    expect(entriesBefore[0]).toHaveTextContent('1900-01')
+    expect(entriesBefore[1]).toHaveTextContent('2025-01')
+
+    fireEvent.change(screen.getByLabelText('Quote'), { target: { value: '20' } })
+    fireEvent.change(screen.getByLabelText('Bundesland'), { target: { value: 'BY' } })
+    fireEvent.change(screen.getByLabelText('Wirksamkeitsmonat'), { target: { value: '2025-02' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Eintrag hinzufügen' }))
+
+    await waitFor(() => {
+      expectSummaryMetric(summaryPanel, 'Kontingent', '4')
+      expect(screen.getAllByText('Quote 20 % · Bundesland BY')).toHaveLength(2)
+    })
+
+    const entriesAfter = within(policyHistory).getAllByRole('listitem')
+    expect(entriesAfter[0]).toHaveTextContent('1900-01')
+    expect(entriesAfter[1]).toHaveTextContent('2025-01')
+    expect(entriesAfter[2]).toHaveTextContent('2025-02')
+
+    firstView.unmount()
+    render(<App storage={storage} today="2025-02-01" />)
+
+    expect(await screen.findByRole('region', { name: 'Regelverlauf' })).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Quote 20 % · Bundesland BY')).toHaveLength(2)
+      expect(screen.getByText('2025-02')).toBeInTheDocument()
+    })
+  })
+
+  it('keeps policy history and month evaluation metrics unchanged when personal settings change', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([
+      { effectiveMonth: '1900-01', quota: 0.6, bundesland: 'BE' },
+      { effectiveMonth: '2025-01', quota: 0.4, bundesland: 'BE' },
+    ])
+    await storage.saveDayEntry({ date: '2025-02-03', status: 'remote-work' })
+    await storage.saveDayEntry({ date: '2025-02-04', status: 'office' })
+
+    render(<App storage={storage} today="2025-02-01" />)
+
+    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
+    const policyHistory = screen.getByRole('region', { name: 'Regelverlauf' })
+    const monthsBefore = within(policyHistory)
+      .getAllByRole('listitem')
+      .map((item) => within(item).getByText(/\d{4}-\d{2}/).textContent)
+
+    expectSummaryMetric(summaryPanel, 'Kontingent', '8')
+    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 / 8')
+    expectSummaryMetric(summaryPanel, 'Büro', '1')
+
+    fireEvent.click(screen.getByLabelText('English'))
+    expect(await screen.findByRole('region', { name: 'Policy History' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Dark'))
+    fireEvent.change(screen.getByLabelText('Warning threshold'), {
+      target: { value: '10' },
+    })
+
+    await waitFor(async () => {
+      expect(screen.getByRole('region', { name: 'Policy History' })).toBeInTheDocument()
+      expectSummaryMetric(screen.getByRole('region', { name: 'Monthly status' }), 'Allowance', '8')
+      expectSummaryMetric(screen.getByRole('region', { name: 'Monthly status' }), 'Remote Work', '1 / 8')
+      expectSummaryMetric(screen.getByRole('region', { name: 'Monthly status' }), 'Office', '1')
+
+      const monthsAfter = within(screen.getByRole('region', { name: 'Policy History' }))
+        .getAllByRole('listitem')
+        .map((item) => within(item).getByText(/\d{4}-\d{2}/).textContent)
+
+      expect(monthsAfter).toEqual(monthsBefore)
+      await expect(storage.load()).resolves.toMatchObject({
+        policyHistory: [
+          { effectiveMonth: '1900-01', quota: 0.6, bundesland: 'BE' },
+          { effectiveMonth: '2025-01', quota: 0.4, bundesland: 'BE' },
+        ],
+      })
+    })
+  })
+
   it('uses the effective policy-history quota and shows over-limit when usage exceeds it', async () => {
     const storage = createTestStorage()
     await storage.savePolicyHistory([
