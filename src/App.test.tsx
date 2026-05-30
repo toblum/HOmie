@@ -200,6 +200,85 @@ describe('App', () => {
     })
   })
 
+  it('exports the visible month as CSV with one row per calendar day and stable status codes', async () => {
+    const storage = createTestStorage()
+    await storage.savePreferences({ language: 'de', theme: 'system', warningThreshold: 0.75 })
+    await storage.savePolicyHistory([{ effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BY' }])
+    await storage.saveDayEntry({ date: '2026-05-04', status: 'remote-work', note: 'Fokuszeit' })
+    await storage.saveDayEntry({ date: '2026-05-05', status: 'office' })
+
+    const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockImplementation(() => 'blob:homie-csv')
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    render(<App storage={storage} today="2026-05-15" />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'CSV exportieren' }))
+
+    await waitFor(async () => {
+      expect(createObjectUrlSpy).toHaveBeenCalledTimes(1)
+
+      const [blob] = createObjectUrlSpy.mock.calls[0] ?? []
+      expect(blob).toBeInstanceOf(Blob)
+
+      const csvText = await (blob as Blob).text()
+      const lines = csvText.trim().split('\n')
+
+      expect(lines).toHaveLength(32)
+      expect(lines[0]).toBe('date,dayKind,status,note')
+      expect(lines).toContain('2026-05-04,arbeitstag,remote-work,Fokuszeit')
+      expect(lines).toContain('2026-05-05,arbeitstag,office,')
+      expect(lines).toContain('2026-05-02,nicht-arbeitstag,unset,')
+      expect(anchorClickSpy).toHaveBeenCalledTimes(1)
+      expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:homie-csv')
+    })
+  })
+
+  it('opens a print-ready monthly report in the current UI language with summary figures and visible open days', async () => {
+    const storage = createTestStorage()
+    await storage.savePreferences({ language: 'de', theme: 'system', warningThreshold: 0.75 })
+    await storage.savePolicyHistory([{ effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BY' }])
+    await storage.saveDayEntry({ date: '2026-05-04', status: 'remote-work', note: 'Fokuszeit' })
+    await storage.saveDayEntry({ date: '2026-05-05', status: 'office', note: 'Teamtag' })
+
+    const reportDocument = {
+      write: vi.fn(),
+      close: vi.fn(),
+    }
+    const reportWindow = {
+      document: reportDocument,
+      focus: vi.fn(),
+    } as unknown as Window
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(reportWindow)
+
+    render(<App storage={storage} today="2026-05-15" />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Bericht drucken' }))
+
+    await waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith('', '_blank', 'noopener,noreferrer')
+      expect(reportDocument.write).toHaveBeenCalledTimes(1)
+    })
+
+    const [reportHtml] = reportDocument.write.mock.calls[0] ?? []
+
+    expect(reportWindow.focus).toHaveBeenCalledTimes(1)
+    expect(reportDocument.close).toHaveBeenCalledTimes(1)
+    expect(reportHtml).toContain('<title>Monatsbericht · Mai 2026</title>')
+    expect(reportHtml).toContain('Monatsbericht')
+    expect(reportHtml).toContain('Arbeitstage')
+    expect(reportHtml).toContain('Kontingent')
+    expect(reportHtml).toContain('Mobiles Arbeiten')
+    expect(reportHtml).toContain('Büro')
+    expect(reportHtml).toContain('Abwesenheit')
+    expect(reportHtml).toContain('Offene Arbeitstage')
+    expect(reportHtml).toContain('datetime="2026-05-06"')
+    expect(reportHtml).toContain('Arbeitstag')
+    expect(reportHtml).toContain('Leer')
+    expect(reportHtml).toContain('Fokuszeit')
+    expect(reportHtml).toContain('Teamtag')
+  })
+
   it('restores a JSON snapshot after confirmation and updates the UI immediately', async () => {
     const storage = createTestStorage()
     await storage.savePreferences({ language: 'de', theme: 'system', warningThreshold: 0.75 })
