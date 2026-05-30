@@ -907,11 +907,13 @@ function buildCsvExportFilename(monthKey: EffectiveMonth): string {
 }
 
 function escapeCsvValue(value: string): string {
-  if (!/[",\n\r]/.test(value)) {
-    return value
+  const escapedValue = /^[=+\-@]/.test(value) ? `'${value}` : value
+
+  if (!/[",\n\r]/.test(escapedValue)) {
+    return escapedValue
   }
 
-  return `"${value.replaceAll('"', '""')}"`
+  return `"${escapedValue.replaceAll('"', '""')}"`
 }
 
 function serializeMonthAsCsv(calendar: CalendarMonthViewModel): string {
@@ -1373,12 +1375,13 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   }
 
   const handlePrintReport = () => {
-    const reportWindow = window.open('', '_blank', 'noopener,noreferrer')
+    const reportWindow = window.open('', '_blank')
 
     if (!reportWindow) {
       return
     }
 
+    reportWindow.opener = null
     reportWindow.document.write(
       buildMonthlyReportHtml({
         calendar,

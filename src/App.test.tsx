@@ -204,7 +204,7 @@ describe('App', () => {
     const storage = createTestStorage()
     await storage.savePreferences({ language: 'de', theme: 'system', warningThreshold: 0.75 })
     await storage.savePolicyHistory([{ effectiveMonth: '2026-01', quota: 0.4, bundesland: 'BY' }])
-    await storage.saveDayEntry({ date: '2026-05-04', status: 'remote-work', note: 'Fokuszeit' })
+    await storage.saveDayEntry({ date: '2026-05-04', status: 'remote-work', note: '=Fokuszeit' })
     await storage.saveDayEntry({ date: '2026-05-05', status: 'office' })
 
     const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockImplementation(() => 'blob:homie-csv')
@@ -226,7 +226,7 @@ describe('App', () => {
 
       expect(lines).toHaveLength(32)
       expect(lines[0]).toBe('date,dayKind,status,note')
-      expect(lines).toContain('2026-05-04,arbeitstag,remote-work,Fokuszeit')
+      expect(lines).toContain("2026-05-04,arbeitstag,remote-work,'=Fokuszeit")
       expect(lines).toContain('2026-05-05,arbeitstag,office,')
       expect(lines).toContain('2026-05-02,nicht-arbeitstag,unset,')
       expect(anchorClickSpy).toHaveBeenCalledTimes(1)
@@ -248,6 +248,7 @@ describe('App', () => {
     const reportWindow = {
       document: reportDocument,
       focus: vi.fn(),
+      opener: window,
     } as unknown as Window
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(reportWindow)
 
@@ -256,12 +257,13 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Bericht drucken' }))
 
     await waitFor(() => {
-      expect(openSpy).toHaveBeenCalledWith('', '_blank', 'noopener,noreferrer')
+      expect(openSpy).toHaveBeenCalledWith('', '_blank')
       expect(reportDocument.write).toHaveBeenCalledTimes(1)
     })
 
     const [reportHtml] = reportDocument.write.mock.calls[0] ?? []
 
+    expect(reportWindow.opener).toBeNull()
     expect(reportWindow.focus).toHaveBeenCalledTimes(1)
     expect(reportDocument.close).toHaveBeenCalledTimes(1)
     expect(reportHtml).toContain('<title>Monatsbericht · Mai 2026</title>')
