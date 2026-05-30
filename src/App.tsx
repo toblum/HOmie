@@ -84,10 +84,27 @@ interface CalendarMonthViewModel {
   evaluation: MonthEvaluation
 }
 
+type ViewMode = 'month' | 'year'
+
+interface YearMonthCardViewModel {
+  monthKey: EffectiveMonth
+  heading: string
+  policy: PolicyHistoryEntry
+  evaluation: MonthEvaluation
+  monthStatus: MonthStatus
+}
+
+interface YearOverviewViewModel {
+  year: number
+  cards: YearMonthCardViewModel[]
+}
+
 interface HomieAppState {
   storage: BrowserStorage
   today: IsoDate
   selectedMonth: EffectiveMonth
+  selectedYear: number
+  viewMode: ViewMode
   snapshot: BrowserStorageState | null
   isLoading: boolean
   error: string | null
@@ -95,6 +112,11 @@ interface HomieAppState {
   detailStatus: DayEntryStatus | 'unset'
   detailNote: string
   initialize: (input: { storage: BrowserStorage; today: IsoDate }) => Promise<void>
+  navigateMonth: (offset: number) => void
+  navigateYear: (offset: number) => void
+  openYearOverview: () => void
+  openMonthOverview: () => void
+  selectMonth: (monthKey: EffectiveMonth) => void
   cycleDayStatus: (date: IsoDate) => Promise<void>
   openDetailView: (date: IsoDate) => void
   closeDetailView: () => void
@@ -112,6 +134,8 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
   storage: createBrowserStorage(),
   today: DEFAULT_TODAY,
   selectedMonth: toMonthKey(DEFAULT_TODAY),
+  selectedYear: Number(toMonthKey(DEFAULT_TODAY).slice(0, 4)),
+  viewMode: 'month',
   snapshot: null,
   isLoading: true,
   error: null,
@@ -123,6 +147,8 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
       storage,
       today,
       selectedMonth: toMonthKey(today),
+      selectedYear: Number(toMonthKey(today).slice(0, 4)),
+      viewMode: 'month',
       isLoading: true,
       error: null,
       detailDate: null,
@@ -138,6 +164,8 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
         storage,
         today,
         selectedMonth: toMonthKey(today),
+        selectedYear: Number(toMonthKey(today).slice(0, 4)),
+        viewMode: 'month',
         snapshot,
         isLoading: false,
         error: null,
@@ -149,6 +177,43 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
         error: error instanceof Error ? error.message : 'Monatsübersicht konnte nicht geladen werden',
       })
     }
+  },
+  navigateMonth(offset) {
+    const { selectedMonth } = get()
+
+    const nextMonth = shiftMonthKey(selectedMonth, offset)
+
+    set({
+      selectedMonth: nextMonth,
+      selectedYear: getYearFromMonthKey(nextMonth),
+      viewMode: 'month',
+    })
+  },
+  navigateYear(offset) {
+    const { selectedYear } = get()
+
+    set({
+      selectedYear: selectedYear + offset,
+      viewMode: 'year',
+    })
+  },
+  openYearOverview() {
+    const { selectedMonth } = get()
+
+    set({
+      viewMode: 'year',
+      selectedYear: getYearFromMonthKey(selectedMonth),
+    })
+  },
+  openMonthOverview() {
+    set({ viewMode: 'month' })
+  },
+  selectMonth(monthKey) {
+    set({
+      selectedMonth: monthKey,
+      selectedYear: getYearFromMonthKey(monthKey),
+      viewMode: 'month',
+    })
   },
   async cycleDayStatus(date) {
     const { snapshot, storage } = get()
@@ -295,16 +360,43 @@ async function ensurePolicyHistory(
   storage: BrowserStorage,
   state: BrowserStorageState,
 ): Promise<BrowserStorageState> {
-  if (state.policyHistory.length > 0) {
+  const normalizedPolicyHistory = normalizePolicyHistory(state.policyHistory)
+
+  if (normalizedPolicyHistory === state.policyHistory) {
     return state
   }
 
-  await storage.savePolicyHistory([DEFAULT_POLICY_ENTRY])
+  await storage.savePolicyHistory(normalizedPolicyHistory)
 
   return {
     ...state,
-    policyHistory: [DEFAULT_POLICY_ENTRY],
+    policyHistory: normalizedPolicyHistory,
   }
+}
+
+function normalizePolicyHistory(policyHistory: PolicyHistoryEntry[]): PolicyHistoryEntry[] {
+  if (policyHistory.length === 0) {
+    return [DEFAULT_POLICY_ENTRY]
+  }
+
+  const sortedPolicyHistory = [...policyHistory].sort((left, right) =>
+    left.effectiveMonth.localeCompare(right.effectiveMonth),
+  )
+  const earliestEntry = sortedPolicyHistory[0]
+
+  if (!earliestEntry || earliestEntry.effectiveMonth <= DEFAULT_POLICY_ENTRY.effectiveMonth) {
+    return sortedPolicyHistory.every((entry, index) => entry === policyHistory[index])
+      ? policyHistory
+      : sortedPolicyHistory
+  }
+
+  return [
+    {
+      ...earliestEntry,
+      effectiveMonth: DEFAULT_POLICY_ENTRY.effectiveMonth,
+    },
+    ...sortedPolicyHistory,
+  ]
 }
 
 function buildCalendarMonthViewModel(
@@ -361,6 +453,44 @@ function capitalizeMonthHeading(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
+function shiftMonthKey(monthKey: EffectiveMonth, offset: number): EffectiveMonth {
+  const { year, month } = parseMonthKey(monthKey)
+  const targetDate = new Date(year, month - 1 + offset, 1, 12)
+  const nextYear = targetDate.getFullYear()
+  const nextMonth = String(targetDate.getMonth() + 1).padStart(2, '0')
+  return `${nextYear}-${nextMonth}` as EffectiveMonth
+}
+
+function getYearFromMonthKey(monthKey: EffectiveMonth): number {
+  return Number(monthKey.slice(0, 4))
+}
+
+function buildYearOverviewViewModel(
+  year: number,
+  today: IsoDate,
+  snapshot: BrowserStorageState,
+): YearOverviewViewModel {
+  return {
+    year,
+    cards: Array.from({ length: 12 }, (_, index) => {
+      const monthKey = `${year}-${String(index + 1).padStart(2, '0')}` as EffectiveMonth
+      const calendar = buildCalendarMonthViewModel(monthKey, today, snapshot)
+      const monthStatus = classifyMonthStatus({
+        evaluation: calendar.evaluation,
+        warningThreshold: snapshot.preferences.warningThreshold,
+      })
+
+      return {
+        monthKey,
+        heading: calendar.heading,
+        policy: calendar.policy,
+        evaluation: calendar.evaluation,
+        monthStatus,
+      }
+    }),
+  }
+}
+
 function getDayTone(
   classification: DayClassification,
   entry?: DayEntry,
@@ -396,6 +526,11 @@ function getDayNumber(date: IsoDate): string {
 function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   const {
     initialize,
+    navigateMonth,
+    navigateYear,
+    openYearOverview,
+    openMonthOverview,
+    selectMonth,
     cycleDayStatus,
     openDetailView,
     closeDetailView,
@@ -403,6 +538,8 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     setDetailNote,
     saveDetailEntry,
     selectedMonth,
+    selectedYear,
+    viewMode,
     snapshot,
     isLoading,
     error,
@@ -439,154 +576,248 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     evaluation: calendar.evaluation,
     warningThreshold: snapshot.preferences.warningThreshold,
   })
+  const yearOverview = buildYearOverviewViewModel(selectedYear, today, snapshot)
 
   return (
     <main className="app-shell">
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">Monatsübersicht</p>
-          <h1>{calendar.heading}</h1>
+          <p className="eyebrow">{viewMode === 'month' ? 'Monatsübersicht' : 'Jahresübersicht'}</p>
+          <div className="hero-heading-row">
+            <button
+              type="button"
+              className="month-nav-button"
+              aria-label={viewMode === 'month' ? 'Vorheriger Monat' : 'Vorheriges Jahr'}
+              onClick={() => {
+                if (viewMode === 'month') {
+                  navigateMonth(-1)
+                  return
+                }
+
+                navigateYear(-1)
+              }}
+            >
+              {viewMode === 'month' ? 'Zurück' : 'Vorjahr'}
+            </button>
+            <h1>{viewMode === 'month' ? calendar.heading : String(yearOverview.year)}</h1>
+            <button
+              type="button"
+              className="month-nav-button"
+              aria-label={viewMode === 'month' ? 'Nächster Monat' : 'Nächstes Jahr'}
+              onClick={() => {
+                if (viewMode === 'month') {
+                  navigateMonth(1)
+                  return
+                }
+
+                navigateYear(1)
+              }}
+            >
+              {viewMode === 'month' ? 'Weiter' : 'Folgejahr'}
+            </button>
+          </div>
           <p className="lead">
-            Primäre Arbeitsfläche für Planung und Buchung mit sofortiger Speicherung in
-            IndexedDB.
+            {viewMode === 'month'
+              ? 'Primäre Arbeitsfläche für Planung und Buchung mit sofortiger Speicherung in IndexedDB.'
+              : 'Jahresweite Auswertung mit einem Monatsstand pro Karte und direktem Sprung zurück in die Monatsübersicht.'}
           </p>
         </div>
 
         <div className="hero-aside">
-          <div className={`status-pill status-${monthStatus}`}>
-            Monatsstand {MONTH_STATUS_LABELS[monthStatus]}
-          </div>
-          <p className="policy-chip">
-            Quote {Math.round(calendar.policy.quota * 100)} % · Bundesland {calendar.policy.bundesland}
-          </p>
+          {viewMode === 'month' ? (
+            <>
+              <div className={`status-pill status-${monthStatus}`}>
+                Monatsstand {MONTH_STATUS_LABELS[monthStatus]}
+              </div>
+              <p className="policy-chip">
+                Quote {Math.round(calendar.policy.quota * 100)} % · Bundesland {calendar.policy.bundesland}
+              </p>
+              <button type="button" className="hero-toggle-button" onClick={openYearOverview}>
+                Jahresübersicht öffnen
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="status-pill">12 Monatskarten</div>
+              <p className="policy-chip">Regelverlauf wird pro Monat separat aufgelöst.</p>
+              <button type="button" className="hero-toggle-button" onClick={openMonthOverview}>
+                Monatsübersicht öffnen
+              </button>
+            </>
+          )}
         </div>
       </section>
 
-      <section className="summary-panel" aria-label="Monatsstand">
-        <div className="summary-panel-head">
-          <div>
-            <p className="eyebrow">Auswertung</p>
-            <h2>Monatsstand</h2>
-          </div>
-          <div className={`status-pill status-${monthStatus}`}>
-            {MONTH_STATUS_LABELS[monthStatus]}
-          </div>
-        </div>
-
-        <dl className="summary-grid">
-          <div className="summary-metric">
-            <dt>Arbeitstage</dt>
-            <dd>{calendar.evaluation.workingDays}</dd>
-          </div>
-          <div className="summary-metric">
-            <dt>Kontingent</dt>
-            <dd>{calendar.evaluation.allowance}</dd>
-          </div>
-          <div className="summary-metric summary-metric-wide">
-            <dt>Mobiles Arbeiten</dt>
-            <dd>
-              {calendar.evaluation.remoteWorkDays} / {calendar.evaluation.allowance}
-            </dd>
-          </div>
-          <div className="summary-metric">
-            <dt>Büro</dt>
-            <dd>{calendar.evaluation.officeDays}</dd>
-          </div>
-          <div className="summary-metric">
-            <dt>Abwesenheit</dt>
-            <dd>{calendar.evaluation.absenceDays}</dd>
-          </div>
-          <div className="summary-metric summary-metric-wide">
-            <dt>Offene Arbeitstage</dt>
-            <dd>{calendar.evaluation.openWorkingDays}</dd>
-          </div>
-        </dl>
-
-        <div className="usage-panel">
-          <div className="usage-copy">
-            <div>
-              <p className="usage-label">Verbrauch</p>
-              <strong>{formatUsagePercentage(calendar.evaluation.usagePercentage)}</strong>
+      {viewMode === 'month' ? (
+        <>
+          <section className="summary-panel" aria-label="Monatsstand">
+            <div className="summary-panel-head">
+              <div>
+                <p className="eyebrow">Auswertung</p>
+                <h2>Monatsstand</h2>
+              </div>
+              <div className={`status-pill status-${monthStatus}`}>
+                {MONTH_STATUS_LABELS[monthStatus]}
+              </div>
             </div>
-            <p>
-              {calendar.evaluation.remoteWorkDays} von {calendar.evaluation.allowance} möglichen
-              Mobiles-Arbeiten-Tagen genutzt.
-            </p>
-          </div>
-          <div
-            className="usage-meter"
-            role="progressbar"
-            aria-label="Verbrauch"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.max(0, Math.min(100, Math.round(calendar.evaluation.usagePercentage)))}
-          >
-            <span
-              className="usage-meter-fill"
-              style={{
-                width: `${Math.max(0, Math.min(100, calendar.evaluation.usagePercentage))}%`,
-              }}
-            />
-          </div>
-        </div>
-      </section>
 
-      <section className="calendar-panel" aria-label="Monatsansicht">
-        <div className="calendar-weekdays" aria-hidden="true">
-          {calendar.weekdayHeaders.map((weekday) => (
-            <span key={weekday}>{weekday}</span>
-          ))}
-        </div>
+            <dl className="summary-grid">
+              <div className="summary-metric">
+                <dt>Arbeitstage</dt>
+                <dd>{calendar.evaluation.workingDays}</dd>
+              </div>
+              <div className="summary-metric">
+                <dt>Kontingent</dt>
+                <dd>{calendar.evaluation.allowance}</dd>
+              </div>
+              <div className="summary-metric summary-metric-wide">
+                <dt>Mobiles Arbeiten</dt>
+                <dd>
+                  {calendar.evaluation.remoteWorkDays} / {calendar.evaluation.allowance}
+                </dd>
+              </div>
+              <div className="summary-metric">
+                <dt>Büro</dt>
+                <dd>{calendar.evaluation.officeDays}</dd>
+              </div>
+              <div className="summary-metric">
+                <dt>Abwesenheit</dt>
+                <dd>{calendar.evaluation.absenceDays}</dd>
+              </div>
+              <div className="summary-metric summary-metric-wide">
+                <dt>Offene Arbeitstage</dt>
+                <dd>{calendar.evaluation.openWorkingDays}</dd>
+              </div>
+            </dl>
 
-        <div className="calendar-grid" role="grid" aria-label="Monatsübersicht">
-          {Array.from({ length: calendar.leadingBlankCount }, (_, index) => (
-            <div key={`blank-${index}`} className="calendar-blank" aria-hidden="true" />
-          ))}
-
-          {calendar.days.map((day) => (
-            <article
-              key={day.classification.date}
-              role="gridcell"
-              aria-label={`${Number(getDayNumber(day.classification.date))} ${formatWeekday(day.classification.date)}`}
-              className={`day-card tone-${day.tone} kind-${day.classification.kind}`}
-            >
-              {day.isInteractive ? (
-                <button
-                  type="button"
-                  className="day-button"
-                  onClick={() => {
-                    void cycleDayStatus(day.classification.date)
-                  }}
-                  onContextMenu={(event) => {
-                    event.preventDefault()
-                    openDetailView(day.classification.date)
-                  }}
-                >
-                  <span className="day-topline">
-                    <span className="day-number">{getDayNumber(day.classification.date)}</span>
-                    <span className="day-weekday">{formatWeekday(day.classification.date)}</span>
-                  </span>
-                  <span className="day-phase">{day.temporalLabel}</span>
-                  <strong className="day-status">{day.statusLabel}</strong>
-                  {day.entry?.note ? <span className="day-note">{day.entry.note}</span> : null}
-                </button>
-              ) : (
-                <div className="day-static">
-                  <span className="day-topline">
-                    <span className="day-number">{getDayNumber(day.classification.date)}</span>
-                    <span className="day-weekday">{formatWeekday(day.classification.date)}</span>
-                  </span>
-                  <span className="day-phase">{day.temporalLabel}</span>
-                  <strong className="day-status">{DAY_KIND_LABELS[day.classification.kind]}</strong>
-                  {day.classification.holidayName ? (
-                    <span className="day-note">{day.classification.holidayName}</span>
-                  ) : null}
+            <div className="usage-panel">
+              <div className="usage-copy">
+                <div>
+                  <p className="usage-label">Verbrauch</p>
+                  <strong>{formatUsagePercentage(calendar.evaluation.usagePercentage)}</strong>
                 </div>
-              )}
-            </article>
-          ))}
-        </div>
-      </section>
+                <p>
+                  {calendar.evaluation.remoteWorkDays} von {calendar.evaluation.allowance} möglichen
+                  Mobiles-Arbeiten-Tagen genutzt.
+                </p>
+              </div>
+              <div
+                className="usage-meter"
+                role="progressbar"
+                aria-label="Verbrauch"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.max(
+                  0,
+                  Math.min(100, Math.round(calendar.evaluation.usagePercentage)),
+                )}
+              >
+                <span
+                  className="usage-meter-fill"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, calendar.evaluation.usagePercentage))}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="calendar-panel" aria-label="Monatsansicht">
+            <div className="calendar-weekdays" aria-hidden="true">
+              {calendar.weekdayHeaders.map((weekday) => (
+                <span key={weekday}>{weekday}</span>
+              ))}
+            </div>
+
+            <div className="calendar-grid" role="grid" aria-label="Monatsübersicht">
+              {Array.from({ length: calendar.leadingBlankCount }, (_, index) => (
+                <div key={`blank-${index}`} className="calendar-blank" aria-hidden="true" />
+              ))}
+
+              {calendar.days.map((day) => (
+                <article
+                  key={day.classification.date}
+                  role="gridcell"
+                  aria-label={`${Number(getDayNumber(day.classification.date))} ${formatWeekday(day.classification.date)}`}
+                  className={`day-card tone-${day.tone} kind-${day.classification.kind}`}
+                >
+                  {day.isInteractive ? (
+                    <button
+                      type="button"
+                      className="day-button"
+                      onClick={() => {
+                        void cycleDayStatus(day.classification.date)
+                      }}
+                      onContextMenu={(event) => {
+                        event.preventDefault()
+                        openDetailView(day.classification.date)
+                      }}
+                    >
+                      <span className="day-topline">
+                        <span className="day-number">{getDayNumber(day.classification.date)}</span>
+                        <span className="day-weekday">{formatWeekday(day.classification.date)}</span>
+                      </span>
+                      <span className="day-phase">{day.temporalLabel}</span>
+                      <strong className="day-status">{day.statusLabel}</strong>
+                      {day.entry?.note ? <span className="day-note">{day.entry.note}</span> : null}
+                    </button>
+                  ) : (
+                    <div className="day-static">
+                      <span className="day-topline">
+                        <span className="day-number">{getDayNumber(day.classification.date)}</span>
+                        <span className="day-weekday">{formatWeekday(day.classification.date)}</span>
+                      </span>
+                      <span className="day-phase">{day.temporalLabel}</span>
+                      <strong className="day-status">{DAY_KIND_LABELS[day.classification.kind]}</strong>
+                      {day.classification.holidayName ? (
+                        <span className="day-note">{day.classification.holidayName}</span>
+                      ) : null}
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        </>
+      ) : (
+        <section className="year-panel" aria-label="Jahresübersicht">
+          <div className="year-grid">
+            {yearOverview.cards.map((card) => (
+              <button
+                key={card.monthKey}
+                type="button"
+                className={`year-card status-${card.monthStatus}`}
+                aria-label={`${card.heading} öffnen`}
+                onClick={() => {
+                  selectMonth(card.monthKey)
+                }}
+              >
+                <span className="year-card-topline">
+                  <span className="year-card-month">{card.heading}</span>
+                  <span className={`status-pill status-${card.monthStatus}`}>
+                    {MONTH_STATUS_LABELS[card.monthStatus]}
+                  </span>
+                </span>
+                <span className="year-card-policy">
+                  Quote {Math.round(card.policy.quota * 100)} % · {card.policy.bundesland}
+                </span>
+                <dl className="year-card-metrics">
+                  <div>
+                    <dt>Mobiles Arbeiten</dt>
+                    <dd>
+                      {card.evaluation.remoteWorkDays} / {card.evaluation.allowance}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Büro</dt>
+                    <dd>{card.evaluation.officeDays}</dd>
+                  </div>
+                </dl>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {detailDate ? (
         <div className="dialog-backdrop">
