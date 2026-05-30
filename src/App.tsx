@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import { create } from 'zustand'
 import './App.css'
 import { classifyMonth } from './domain/calendarClassification'
@@ -85,6 +85,14 @@ type TranslationDictionary = {
   themeDark: string
   themeSystem: string
   warningThreshold: string
+  localBackup: string
+  localBackupLead: string
+  exportJson: string
+  restoreJson: string
+  restoreWarning: string
+  restoreInvalidJson: string
+  restoreFailed: string
+  restoreSucceeded: string
   effectiveMonth: string
   booking: string
   planning: string
@@ -144,6 +152,14 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     themeDark: 'Dunkel',
     themeSystem: 'System',
     warningThreshold: 'Warnschwelle',
+    localBackup: 'Datensicherung',
+    localBackupLead: 'Export und Restore des kompletten lokalen Zustands als JSON-Datei.',
+    exportJson: 'JSON exportieren',
+    restoreJson: 'JSON wiederherstellen',
+    restoreWarning: 'Der aktuelle lokale Datenbestand wird vollständig ersetzt. Fortfahren?',
+    restoreInvalidJson: 'JSON-Datei ist ungültig.',
+    restoreFailed: 'JSON-Wiederherstellung fehlgeschlagen.',
+    restoreSucceeded: 'JSON erfolgreich wiederhergestellt.',
     effectiveMonth: 'Wirksamkeitsmonat',
     booking: 'Buchung',
     planning: 'Planung',
@@ -201,6 +217,14 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     themeDark: 'Dark',
     themeSystem: 'System',
     warningThreshold: 'Warning threshold',
+    localBackup: 'Data backup',
+    localBackupLead: 'Export and restore the complete local state as a JSON file.',
+    exportJson: 'Export JSON',
+    restoreJson: 'Restore JSON',
+    restoreWarning: 'This replaces the entire current local dataset. Continue?',
+    restoreInvalidJson: 'JSON file is invalid.',
+    restoreFailed: 'JSON restore failed.',
+    restoreSucceeded: 'JSON restored successfully.',
     effectiveMonth: 'Effective month',
     booking: 'Booking',
     planning: 'Plan',
@@ -316,6 +340,7 @@ interface HomieAppState {
   initialize: (input: { storage: BrowserStorage; today: IsoDate }) => Promise<void>
   updatePreferences: (preferences: Partial<PersonalPreferences>) => Promise<void>
   addPolicyHistoryEntry: (entry: PolicyHistoryEntry) => Promise<void>
+  restoreSnapshot: (state: BrowserStorageState) => Promise<void>
   navigateMonth: (offset: number) => void
   navigateYear: (offset: number) => void
   openYearOverview: () => void
@@ -426,6 +451,26 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
         ...snapshot,
         policyHistory: nextPolicyHistory,
       },
+    })
+  },
+  async restoreSnapshot(state) {
+    const { storage, selectedMonth, selectedYear, viewMode } = get()
+
+    await storage.restoreState(state)
+
+    const loadedState = await storage.load()
+    const snapshot = await ensurePolicyHistory(storage, loadedState)
+
+    set({
+      snapshot,
+      selectedMonth,
+      selectedYear: viewMode === 'month' ? getYearFromMonthKey(selectedMonth) : selectedYear,
+      viewMode,
+      isLoading: false,
+      error: null,
+      detailDate: null,
+      detailStatus: 'unset',
+      detailNote: '',
     })
   },
   navigateMonth(offset) {
@@ -817,11 +862,16 @@ function getDayNumber(date: IsoDate): string {
   return date.slice(8, 10)
 }
 
+function buildExportFilename(today: IsoDate): string {
+  return `homie-export-${today}.json`
+}
+
 function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   const {
     initialize,
     updatePreferences,
     addPolicyHistoryEntry,
+    restoreSnapshot,
     navigateMonth,
     navigateYear,
     openYearOverview,
@@ -843,6 +893,8 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     detailStatus,
     detailNote,
   } = useHomieStore()
+  const [restoreError, setRestoreError] = useState<string | null>(null)
+  const [restoreSuccess, setRestoreSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     void initialize({ storage, today })
@@ -904,6 +956,55 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     warningThreshold: snapshot.preferences.warningThreshold,
   })
   const yearOverview = buildYearOverviewViewModel(selectedYear, today, snapshot, language)
+
+  const handleExportJson = async () => {
+    const exportedState = await storage.exportState()
+    const blob = new Blob([JSON.stringify(exportedState, null, 2)], {
+      type: 'application/json',
+    })
+    const downloadUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+
+    link.href = downloadUrl
+    link.download = buildExportFilename(today)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 100) // defer revocation to avoid cancelled downloads in some browsers
+  }
+
+  const handleRestoreFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    setRestoreSuccess(null)
+    setRestoreError(null)
+
+    if (!window.confirm(t.restoreWarning)) {
+      event.target.value = ''
+      return
+    }
+
+    try {
+      const parsedState = JSON.parse(await file.text()) as BrowserStorageState
+
+      await restoreSnapshot(parsedState)
+      setRestoreError(null)
+      setRestoreSuccess(t.restoreSucceeded)
+    } catch (error) {
+      setRestoreSuccess(null)
+      if (error instanceof SyntaxError) {
+        setRestoreError(t.restoreInvalidJson)
+      } else {
+        setRestoreError(error instanceof Error ? error.message : t.restoreFailed)
+      }
+    } finally {
+      event.target.value = ''
+    }
+  }
 
   return (
     <main className="app-shell">
@@ -1140,6 +1241,49 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 }}
               />
             </label>
+
+            <div className="backup-panel">
+              <div className="backup-copy">
+                <strong>{t.localBackup}</strong>
+                <p>{t.localBackupLead}</p>
+              </div>
+
+              <div className="backup-actions">
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => {
+                    void handleExportJson()
+                  }}
+                >
+                  {t.exportJson}
+                </button>
+
+                <label className="ghost-button file-trigger" tabIndex={0}>
+                  <span>{t.restoreJson}</span>
+                  <input
+                    aria-label={t.restoreJson}
+                    type="file"
+                    accept="application/json,.json"
+                    className="visually-hidden"
+                    onChange={(event) => {
+                      void handleRestoreFileChange(event)
+                    }}
+                  />
+                </label>
+              </div>
+
+              {restoreSuccess ? (
+                <p className="settings-feedback settings-feedback-success" role="status">
+                  {restoreSuccess}
+                </p>
+              ) : null}
+              {restoreError ? (
+                <p className="settings-feedback settings-feedback-error" role="alert">
+                  {restoreError}
+                </p>
+              ) : null}
+            </div>
           </section>
 
           <section className="settings-panel" aria-label={t.policyHistory}>
