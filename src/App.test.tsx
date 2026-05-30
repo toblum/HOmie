@@ -187,6 +187,115 @@ describe('App', () => {
     )
   })
 
+  it('navigates to the previous and next month from the Monatsübersicht header', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([
+      { effectiveMonth: '1900-01', quota: 0.5, bundesland: 'BE' },
+      { effectiveMonth: '2026-06', quota: 0.25, bundesland: 'BE' },
+    ])
+    await storage.saveDayEntry({ date: '2026-04-15', status: 'office' })
+    await storage.saveDayEntry({ date: '2026-06-02', status: 'remote-work' })
+
+    render(<App storage={storage} today="2026-05-15" />)
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Mai 2026',
+      }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vorheriger Monat' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'April 2026',
+      }),
+    ).toBeInTheDocument()
+
+    const aprilSummary = await screen.findByRole('region', { name: 'Monatsstand' })
+    expectSummaryMetric(aprilSummary, 'Büro', '1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nächster Monat' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Nächster Monat' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Juni 2026',
+      }),
+    ).toBeInTheDocument()
+
+    const juneSummary = await screen.findByRole('region', { name: 'Monatsstand' })
+    expectSummaryMetric(juneSummary, 'Kontingent', '5')
+    expectSummaryMetric(juneSummary, 'Mobiles Arbeiten', '1 / 5')
+  })
+
+  it('shows a Jahresübersicht with independently evaluated month cards for the selected year', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([
+      { effectiveMonth: '1900-01', quota: 0.5, bundesland: 'BE' },
+      { effectiveMonth: '2026-07', quota: 0.25, bundesland: 'BE' },
+    ])
+
+    for (const date of ['2026-05-04', '2026-05-05', '2026-05-06'] as const) {
+      await storage.saveDayEntry({ date, status: 'remote-work' })
+    }
+
+    for (const date of ['2026-08-03', '2026-08-04', '2026-08-05', '2026-08-06', '2026-08-07'] as const) {
+      await storage.saveDayEntry({ date, status: 'remote-work' })
+    }
+
+    await storage.saveDayEntry({ date: '2026-08-10', status: 'office' })
+
+    render(<App storage={storage} today="2026-05-15" />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Jahresübersicht öffnen' }))
+
+    const yearOverview = await screen.findByRole('region', { name: 'Jahresübersicht' })
+    const monthCards = within(yearOverview).getAllByRole('button', { name: /2026 öffnen/i })
+    expect(monthCards).toHaveLength(12)
+
+    const mayCard = within(yearOverview).getByRole('button', { name: 'Mai 2026 öffnen' })
+    expect(within(mayCard).getByText('Normal')).toBeInTheDocument()
+    expect(within(mayCard).getByText('3 / 9')).toBeInTheDocument()
+
+    const augustCard = within(yearOverview).getByRole('button', { name: 'August 2026 öffnen' })
+    expect(within(augustCard).getByText('Warnung')).toBeInTheDocument()
+    expect(within(augustCard).getByText('5 / 5')).toBeInTheDocument()
+    expect(within(augustCard).getByText('1')).toBeInTheDocument()
+  })
+
+  it('navigates years in the Jahresübersicht and opens a month card in the Monatsübersicht', async () => {
+    const storage = createTestStorage()
+    await storage.savePolicyHistory([{ effectiveMonth: '1900-01', quota: 0.5, bundesland: 'BE' }])
+    await storage.saveDayEntry({ date: '2025-02-03', status: 'office' })
+
+    render(<App storage={storage} today="2026-05-15" />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Jahresübersicht öffnen' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: '2026' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vorheriges Jahr' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: '2025' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Februar 2025 öffnen' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Februar 2025',
+      }),
+    ).toBeInTheDocument()
+
+    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
+    expectSummaryMetric(summaryPanel, 'Büro', '1')
+    expect(screen.getByRole('grid', { name: 'Monatsübersicht' })).toBeInTheDocument()
+  })
+
   it('cycles a working day through the status cycle and reloads the persisted value', async () => {
     const storage = createTestStorage()
     const view = render(<App storage={storage} today="2026-05-15" />)
