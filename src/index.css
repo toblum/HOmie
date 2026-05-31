@@ -7,7 +7,7 @@
   /* Global light mode theme values (highly refined slate/zinc aesthetic) */
   --text: #3f3f46; /* zinc-700 */
   --text-h: #09090b; /* zinc-950 */
-  --muted: #71717a; /* zinc-500 */
+  --muted: #52525b; /* zinc-600 - boosted from #71717a for >4.5:1 WCAG AA readability */
   --bg: #f4f4f5; /* zinc-100 */
   --bg-deep: #e4e4e7; /* zinc-200 */
   --surface: rgba(255, 255, 255, 0.85);
@@ -71,7 +71,7 @@
   /* Global dark mode theme values (premium obsidian dark theme) */
   --text: #cbd5e1; /* slate-300 */
   --text-h: #fafafa; /* slate-50 */
-  --muted: #64748b; /* slate-500 */
+  --muted: #94a3b8; /* slate-400 - boosted from #64748b so metadata is incredibly readable */
   --bg: #09090b; /* zinc-950 */
   --bg-deep: #030303; 
   --surface: rgba(15, 23, 42, 0.65); /* blue-gray-slate translucent */

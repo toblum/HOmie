@@ -578,6 +578,9 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   font-weight: 500;
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 .day-phase {
@@ -607,6 +610,9 @@
   letter-spacing: -0.015em;
   text-wrap: balance;
   margin-top: 0.1rem;
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 /* High-tech glow and accents based on tones */
@@ -658,22 +664,32 @@
 
 /* Non-working days (disabled gridcards) */
 .tone-non-working {
-  background: rgba(0, 0, 0, 0.015);
+  background: rgba(0, 0, 0, 0.025);
   border-color: var(--border);
-  opacity: 0.65;
 }
 
 :root[data-theme='dark'] .tone-non-working {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 .tone-non-working .day-static {
+  /* Remove stacked opacity so headers, statuses, and holiday notes are fully readable */
+  opacity: 1;
+}
+
+.tone-non-working .day-topline {
+  color: var(--text-h);
   opacity: 0.6;
 }
 
-.tone-non-working .day-topline, 
 .tone-non-working .day-status {
   color: var(--muted);
+}
+
+.tone-non-working .day-note {
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* Today emphasis glow indicator */

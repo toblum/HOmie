@@ -14,6 +14,7 @@ function formatMonthHeading(date: Date): string {
 }
 
 test('renders the monthly overview and opens the detail flow', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2024-11-03T12:00:00'))
   await page.goto('/')
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/[A-ZÄÖÜ][A-Za-zÄÖÜäöüß]+ 20\d{2}/)
@@ -31,7 +32,9 @@ test('renders the monthly overview and opens the detail flow', async ({ page }) 
 })
 
 test('navigates months and the Jahresübersicht', async ({ page }) => {
-  const today = new Date()
+  await page.clock.setFixedTime(new Date('2024-11-03T12:00:00'))
+  
+  const today = new Date('2024-11-03T12:00:00')
   today.setHours(12, 0, 0, 0)
 
   const previousMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1, 12)

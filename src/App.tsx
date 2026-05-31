@@ -1089,16 +1089,37 @@ function buildMonthlyReportHtml(input: {
     <style>
       :root {
         color-scheme: light;
-        --ink: #1f2937;
-        --muted: #6b7280;
-        --paper: #fffdfa;
-        --paper-deep: #f3eadc;
-        --line: rgba(31, 41, 55, 0.12);
-        --accent: #143d73;
-        --accent-soft: rgba(20, 61, 115, 0.08);
-        --ok: #245245;
-        --warn: #8f5d00;
-        --empty: #6b7280;
+        --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        --text: #3f3f46; /* zinc-700 */
+        --text-h: #09090b; /* zinc-950 */
+        --muted: #71717a; /* zinc-500 */
+        --bg: #f4f4f5; /* zinc-100 */
+        --bg-deep: #e4e4e7; /* zinc-200 */
+        --surface: rgba(255, 255, 255, 0.85);
+        --surface-strong: #ffffff;
+        --border: rgba(9, 9, 11, 0.12);
+        --accent: #2563eb;
+        --accent-soft: rgba(37, 99, 235, 0.08);
+
+        --tone-empty-bg: #f4f4f5;
+        --tone-empty-border: rgba(9, 9, 11, 0.12);
+        --tone-empty-text: #71717a;
+        --tone-remote-bg: #ecfdf5;
+        --tone-remote-border: #10b981;
+        --tone-remote-text: #047857;
+        --tone-office-bg: #eff6ff;
+        --tone-office-border: #3b82f6;
+        --tone-office-text: #1d4ed8;
+        --tone-vacation-bg: #faf5ff;
+        --tone-vacation-border: #a855f7;
+        --tone-vacation-text: #7e22ce;
+        --tone-sick-bg: #fff1f2;
+        --tone-sick-border: #f43f5e;
+        --tone-sick-text: #be123c;
+        --tone-other-bg: #f8fafc;
+        --tone-other-border: #64748b;
+        --tone-other-text: #475569;
       }
 
       * {
@@ -1107,35 +1128,55 @@ function buildMonthlyReportHtml(input: {
 
       body {
         margin: 0;
-        font: 16px/1.5 'Avenir Next', 'Segoe UI', sans-serif;
-        color: var(--ink);
+        font: 14px/1.55 var(--sans);
+        color: var(--text);
         background:
-          radial-gradient(circle at top left, rgba(248, 205, 74, 0.16), transparent 28%),
-          linear-gradient(180deg, #f6efe5, #efe7da);
+          radial-gradient(circle at top left, var(--accent-soft), transparent 35%),
+          linear-gradient(180deg, var(--bg), var(--bg-deep));
+        min-height: 100vh;
       }
 
       .report-shell {
         width: min(100%, 960px);
         margin: 0 auto;
-        padding: 32px 24px 48px;
+        padding: 3rem 1.5rem;
       }
 
       .report-hero {
-        padding: 28px;
-        border: 1px solid var(--line);
-        border-radius: 28px;
-        background:
-          linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(250, 244, 235, 0.92)),
-          var(--paper);
-        box-shadow: 0 20px 50px -38px rgba(15, 23, 42, 0.45);
+        padding: 1.75rem 2rem;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 12px -2px rgba(9, 9, 11, 0.05);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .report-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: 
+          linear-gradient(rgba(9, 9, 11, 0.015) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(9, 9, 11, 0.015) 1px, transparent 1px);
+        background-size: 20px 20px;
+        z-index: 1;
+      }
+
+      .report-hero > * {
+        position: relative;
+        z-index: 2;
       }
 
       .report-kicker {
-        margin: 0 0 8px;
-        color: #8c5a13;
-        font-size: 12px;
-        font-weight: 800;
-        letter-spacing: 0.16em;
+        margin: 0 0 0.4rem;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.15em;
         text-transform: uppercase;
       }
 
@@ -1143,20 +1184,21 @@ function buildMonthlyReportHtml(input: {
         display: flex;
         flex-wrap: wrap;
         gap: 16px;
-        align-items: end;
+        align-items: center;
         justify-content: space-between;
       }
 
       h1,
       h2 {
         margin: 0;
-        font-family: 'Iowan Old Style', 'Palatino Linotype', serif;
-        color: #152133;
+        color: var(--text-h);
+        font-family: var(--mono);
       }
 
       h1 {
-        font-size: clamp(2.2rem, 5vw, 3.4rem);
-        line-height: 0.95;
+        font-size: clamp(2rem, 3.2vw, 3.2rem);
+        font-weight: 800;
+        letter-spacing: -0.05em;
       }
 
       h2 {
@@ -1164,8 +1206,9 @@ function buildMonthlyReportHtml(input: {
       }
 
       .report-subtitle {
-        margin: 8px 0 0;
-        color: var(--muted);
+        margin: 0.5rem 0 0;
+        color: var(--text);
+        font-size: 0.95rem;
       }
 
       .report-badges {
@@ -1175,50 +1218,75 @@ function buildMonthlyReportHtml(input: {
       }
 
       .report-badge {
-        padding: 8px 12px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.82);
-        font-size: 14px;
+        padding: 0.3rem 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--surface-strong);
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.8rem;
         font-weight: 700;
       }
 
       .report-grid {
         display: grid;
-        gap: 18px;
-        margin-top: 22px;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
       }
 
       .report-summary {
         display: grid;
-        gap: 12px;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.75rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      @media (min-width: 640px) {
+        .report-summary {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @media (min-width: 900px) {
+        .report-summary {
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
       }
 
       .report-card,
       .report-table-wrap {
-        border: 1px solid var(--line);
-        border-radius: 22px;
-        background: rgba(255, 255, 255, 0.88);
-        box-shadow: 0 14px 34px -30px rgba(15, 23, 42, 0.45);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 12px -2px rgba(9, 9, 11, 0.05);
       }
 
       .report-card {
-        padding: 16px 18px;
+        padding: 0.85rem 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.02);
       }
 
       .report-card span {
         display: block;
         color: var(--muted);
-        font-size: 13px;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
       }
 
       .report-card strong {
         display: block;
-        margin-top: 8px;
-        font-size: 1.4rem;
+        margin-top: 0.15rem;
+        font-family: var(--mono);
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: var(--text-h);
       }
 
       .report-table-wrap {
@@ -1230,7 +1298,7 @@ function buildMonthlyReportHtml(input: {
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 18px 20px 0;
+        padding: 1.25rem 1.5rem 0.5rem;
       }
 
       table {
@@ -1239,20 +1307,22 @@ function buildMonthlyReportHtml(input: {
       }
 
       thead th {
-        padding: 14px 20px 12px;
-        border-bottom: 1px solid var(--line);
+        padding: 0.75rem 1.25rem;
+        border-bottom: 1px solid var(--border);
         color: var(--muted);
-        font-size: 12px;
-        font-weight: 800;
-        letter-spacing: 0.14em;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
         text-align: left;
         text-transform: uppercase;
       }
 
       tbody td {
-        padding: 14px 20px;
-        border-bottom: 1px solid rgba(31, 41, 55, 0.08);
+        padding: 0.75rem 1.25rem;
+        border-bottom: 1px solid var(--border);
         vertical-align: top;
+        font-size: 0.88rem;
       }
 
       tbody tr:last-child td {
@@ -1260,32 +1330,56 @@ function buildMonthlyReportHtml(input: {
       }
 
       .report-row-open {
-        background: linear-gradient(90deg, rgba(20, 61, 115, 0.06), transparent 75%);
+        background: linear-gradient(90deg, var(--accent-soft), transparent 75%);
       }
 
       .report-status {
         display: inline-flex;
-        padding: 5px 10px;
-        border-radius: 999px;
-        font-size: 13px;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-family: var(--sans);
+        font-size: 0.75rem;
         font-weight: 700;
-        background: rgba(31, 41, 55, 0.08);
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        border: 1px solid var(--border);
       }
 
       .report-status-empty,
       .report-status-non-working {
-        color: var(--empty);
+        background: var(--tone-empty-bg);
+        border-color: var(--tone-empty-border);
+        color: var(--tone-empty-text);
       }
 
-      .report-status-remote-work,
+      .report-status-remote-work {
+        background: var(--tone-remote-bg);
+        border-color: var(--tone-remote-border);
+        color: var(--tone-remote-text);
+      }
+
       .report-status-office {
-        color: var(--accent);
+        background: var(--tone-office-bg);
+        border-color: var(--tone-office-border);
+        color: var(--tone-office-text);
       }
 
-      .report-status-vacation,
-      .report-status-sick,
+      .report-status-vacation {
+        background: var(--tone-vacation-bg);
+        border-color: var(--tone-vacation-border);
+        color: var(--tone-vacation-text);
+      }
+
+      .report-status-sick {
+        background: var(--tone-sick-bg);
+        border-color: var(--tone-sick-border);
+        color: var(--tone-sick-text);
+      }
+
       .report-status-other {
-        color: var(--warn);
+        background: var(--tone-other-bg);
+        border-color: var(--tone-other-border);
+        color: var(--tone-other-text);
       }
 
       @media print {
