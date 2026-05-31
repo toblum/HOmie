@@ -1293,6 +1293,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   } = useHomieStore()
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const [restoreSuccess, setRestoreSuccess] = useState<string | null>(null)
+  const [warningThresholdInput, setWarningThresholdInput] = useState<string | null>(null)
 
   useEffect(() => {
     void initialize({ storage, today })
@@ -1349,6 +1350,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   const calendar = buildCalendarMonthViewModel(selectedMonth, today, snapshot, language)
   const latestPolicyEntry = snapshot.policyHistory[snapshot.policyHistory.length - 1] ?? DEFAULT_POLICY_ENTRY
   const minimumNextPolicyMonth = shiftMonthKey(latestPolicyEntry.effectiveMonth, 1)
+  const warningThresholdPercentage = Math.round(snapshot.preferences.warningThreshold * 100)
   const monthStatus = classifyMonthStatus({
     evaluation: calendar.evaluation,
     warningThreshold: snapshot.preferences.warningThreshold,
@@ -1655,14 +1657,19 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 min={0}
                 max={100}
                 step={1}
-                value={Math.round(snapshot.preferences.warningThreshold * 100)}
+                value={warningThresholdInput ?? String(warningThresholdPercentage)}
+                onBlur={() => {
+                  setWarningThresholdInput(null)
+                }}
                 onChange={(event) => {
-                  if (event.target.value === '') {
-                    event.target.value = String(Math.round(snapshot.preferences.warningThreshold * 100))
+                  const nextInput = event.target.value
+                  setWarningThresholdInput(nextInput)
+
+                  if (nextInput === '') {
                     return
                   }
 
-                  const nextValue = Number(event.target.value)
+                  const nextValue = Number(nextInput)
 
                   if (Number.isNaN(nextValue) || nextValue < 0 || nextValue > 100) {
                     return
