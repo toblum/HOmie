@@ -62,7 +62,7 @@ const DEFAULT_SCHEMA_VERSION = 1
 const DAY_ENTRY_STATUSES = ['remote-work', 'office', 'vacation', 'sick'] as const
 const LANGUAGES = ['de', 'en'] as const
 const THEMES = ['light', 'dark', 'system'] as const
-const BUNDESLAENDER = [
+export const BUNDESLAENDER = [
   'BB',
   'BE',
   'BW',

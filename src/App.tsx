@@ -17,6 +17,7 @@ import {
 import type { DayClassification, IsoDate } from './domain/types'
 import {
   createBrowserStorage,
+  BUNDESLAENDER,
   type BrowserStorage,
   type BrowserStorageState,
   type PersonalPreferences,
@@ -35,24 +36,6 @@ const DEFAULT_POLICY_ENTRY: PolicyHistoryEntry = {
   quota: 0.6,
   bundesland: 'BE',
 }
-const BUNDESLAND_OPTIONS: Array<PolicyHistoryEntry['bundesland']> = [
-  'BB',
-  'BE',
-  'BW',
-  'BY',
-  'HB',
-  'HE',
-  'HH',
-  'MV',
-  'NI',
-  'NW',
-  'RP',
-  'SH',
-  'SL',
-  'SN',
-  'ST',
-  'TH',
-]
 const LOCALE_BY_LANGUAGE: Record<PersonalPreferences['language'], string> = {
   de: 'de-DE',
   en: 'en-US',
@@ -938,8 +921,10 @@ function downloadBlob(blob: Blob, filename: string) {
 
   link.href = downloadUrl
   link.download = filename
+  document.body.appendChild(link)
   link.click()
-  URL.revokeObjectURL(downloadUrl)
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(downloadUrl), 100)
 }
 
 function escapeHtml(value: string): string {
@@ -1318,11 +1303,24 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
       return
     }
 
-    const resolvedTheme = resolveThemePreference(snapshot.preferences.theme)
+    const theme = snapshot.preferences.theme
 
-    document.documentElement.dataset.theme = resolvedTheme
-    document.documentElement.dataset.themePreference = snapshot.preferences.theme
-    document.documentElement.style.colorScheme = resolvedTheme
+    const applyTheme = () => {
+      const resolvedTheme = resolveThemePreference(theme)
+      document.documentElement.dataset.theme = resolvedTheme
+      document.documentElement.dataset.themePreference = theme
+      document.documentElement.style.colorScheme = resolvedTheme
+    }
+
+    applyTheme()
+
+    if (theme === 'system' && typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      mediaQuery.addEventListener('change', applyTheme)
+      return () => {
+        mediaQuery.removeEventListener('change', applyTheme)
+      }
+    }
   }, [snapshot])
 
   if (error) {
@@ -1362,7 +1360,6 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     const blob = new Blob([JSON.stringify(exportedState, null, 2)], {
       type: 'application/json',
     })
-
     downloadBlob(blob, buildJsonExportFilename(today))
   }
 
@@ -1401,6 +1398,9 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     if (!file) {
       return
     }
+
+    setRestoreSuccess(null)
+    setRestoreError(null)
 
     if (!window.confirm(t.restoreWarning)) {
       event.target.value = ''
@@ -1657,6 +1657,11 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 step={1}
                 value={Math.round(snapshot.preferences.warningThreshold * 100)}
                 onChange={(event) => {
+                  // Treat empty input as no-op to prevent accidentally resetting threshold to 0%
+                  if (event.target.value === '') {
+                    return
+                  }
+
                   const nextValue = Number(event.target.value)
 
                   if (Number.isNaN(nextValue) || nextValue < 0 || nextValue > 100) {
@@ -1685,13 +1690,13 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                   {t.exportJson}
                 </button>
 
-                <label className="ghost-button file-trigger">
+                <label className="ghost-button file-trigger" tabIndex={0}>
                   <span>{t.restoreJson}</span>
                   <input
                     aria-label={t.restoreJson}
                     type="file"
                     accept="application/json,.json"
-                    hidden
+                    className="visually-hidden"
                     onChange={(event) => {
                       void handleRestoreFileChange(event)
                     }}
@@ -1785,7 +1790,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                   aria-label={t.federalState}
                   defaultValue={latestPolicyEntry.bundesland}
                 >
-                  {BUNDESLAND_OPTIONS.map((bundesland) => (
+                  {BUNDESLAENDER.map((bundesland) => (
                     <option key={bundesland} value={bundesland}>
                       {bundesland}
                     </option>
