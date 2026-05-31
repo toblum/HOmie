@@ -29,7 +29,7 @@ describe('evaluateMonth', () => {
       vacationDays: 0,
       sickDays: 0,
       absenceDays: 0,
-      openWorkingDays: 0,
+      openWorkingDays: 20,
       usagePercentage: 0,
     })
   })
@@ -162,7 +162,7 @@ describe('evaluateMonth', () => {
     })
   })
 
-  it('counts only past working days without entries as open working days', () => {
+  it('counts only remaining working days without entries as open working days', () => {
     const classifications = classifyMonth({
       year: 2025,
       month: 1,
@@ -186,7 +186,31 @@ describe('evaluateMonth', () => {
     ).toMatchObject({
       officeDays: 1,
       remoteWorkDays: 1,
-      openWorkingDays: 6,
+      openWorkingDays: 14,
+    })
+  })
+
+  it('treats other absences like non-open non-working entries', () => {
+    const classifications = classifyMonth({
+      year: 2025,
+      month: 1,
+      bundesland: 'NW',
+      ausschlusstage: [],
+      ueberschreibungen: [],
+    })
+
+    expect(
+      evaluateMonth({
+        year: 2025,
+        month: 1,
+        quota: 0.6,
+        classifications,
+        entries: [{ date: '2025-01-20', status: 'other' }],
+        today: '2025-01-10',
+      }),
+    ).toMatchObject({
+      absenceDays: 1,
+      openWorkingDays: 15,
     })
   })
 

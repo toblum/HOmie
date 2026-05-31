@@ -1,6 +1,6 @@
 import type { DayClassification, IsoDate } from './types'
 
-export type DayEntryStatus = 'remote-work' | 'office' | 'vacation' | 'sick'
+export type DayEntryStatus = 'remote-work' | 'office' | 'vacation' | 'sick' | 'other'
 
 export interface DayEntry {
   date: IsoDate
@@ -53,6 +53,7 @@ export function evaluateMonth(input: EvaluateMonthInput): MonthEvaluation {
   let officeDays = 0
   let vacationDays = 0
   let sickDays = 0
+  let otherAbsenceDays = 0
   let openWorkingDays = 0
 
   for (const classification of input.classifications) {
@@ -72,6 +73,11 @@ export function evaluateMonth(input: EvaluateMonthInput): MonthEvaluation {
       continue
     }
 
+    if (entry?.status === 'other') {
+      otherAbsenceDays += 1
+      continue
+    }
+
     workingDays += 1
 
     if (entry?.status === 'remote-work') {
@@ -84,13 +90,13 @@ export function evaluateMonth(input: EvaluateMonthInput): MonthEvaluation {
       continue
     }
 
-    if (classification.date < input.today) {
+    if (classification.date >= input.today) {
       openWorkingDays += 1
     }
   }
 
   const allowance = Math.floor(workingDays * input.quota)
-  const absenceDays = vacationDays + sickDays
+  const absenceDays = vacationDays + sickDays + otherAbsenceDays
 
   return {
     workingDays,

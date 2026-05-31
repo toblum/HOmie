@@ -53,6 +53,34 @@ function expectSummaryMetric(summaryPanel: HTMLElement, label: string, value: st
   expect(within(metric as HTMLElement).getByText(value)).toBeInTheDocument()
 }
 
+async function openSettingsPage() {
+  const settingsButton = await screen.findByRole('button', {
+    name: /Einstellungen öffnen|Open settings/i,
+  })
+
+  if (settingsButton.getAttribute('aria-pressed') !== 'true') {
+    fireEvent.click(settingsButton)
+  }
+
+  await screen.findByRole('region', {
+    name: /Persönliche Einstellungen|Personal Settings/i,
+  })
+}
+
+async function openMonthOverviewPage() {
+  const returnButtons = await screen.findAllByRole('button', {
+    name: /Monatsübersicht öffnen|Open monthly overview|Jahresübersicht öffnen|Open yearly overview/i,
+  })
+
+  fireEvent.click(returnButtons[0] as HTMLElement)
+
+  await waitFor(() => {
+    expect(
+      screen.queryByRole('region', { name: /Persönliche Einstellungen|Personal Settings/i }),
+    ).not.toBeInTheDocument()
+  })
+}
+
 describe('App', () => {
   it('renders the summary panel values for the selected month', async () => {
     const storage = createTestStorage()
@@ -69,7 +97,7 @@ describe('App', () => {
     expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 / 10')
     expectSummaryMetric(summaryPanel, 'Büro', '1')
     expectSummaryMetric(summaryPanel, 'Abwesenheit', '0')
-    expectSummaryMetric(summaryPanel, 'Offene Arbeitstage', '0')
+    expectSummaryMetric(summaryPanel, 'Offene Arbeitstage', '18')
     expect(within(summaryPanel).getByText('Verbrauch')).toBeInTheDocument()
     expect(within(summaryPanel).getByText('10 %')).toBeInTheDocument()
   })
@@ -139,12 +167,15 @@ describe('App', () => {
     const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
     expect(within(summaryPanel).getByText('Normal')).toBeInTheDocument()
 
+    await openSettingsPage()
     fireEvent.change(screen.getByLabelText('Warnschwelle'), {
       target: { value: '75' },
     })
 
+    await openMonthOverviewPage()
+
     await waitFor(async () => {
-      expect(within(summaryPanel).getByText('Warnung')).toBeInTheDocument()
+      expect(within(screen.getByRole('region', { name: 'Monatsstand' })).getByText('Warnung')).toBeInTheDocument()
       await expect(storage.load()).resolves.toMatchObject({
         preferences: {
           warningThreshold: 0.75,
@@ -157,6 +188,7 @@ describe('App', () => {
 
     const reloadedSummary = await screen.findByRole('region', { name: 'Monatsstand' })
     expect(within(reloadedSummary).getByText('Warnung')).toBeInTheDocument()
+    await openSettingsPage()
     expect(screen.getByLabelText('Warnschwelle')).toHaveValue(75)
   })
 
@@ -175,6 +207,7 @@ describe('App', () => {
 
     render(<App storage={storage} today="2026-05-15" />)
 
+    await openSettingsPage()
     fireEvent.click(await screen.findByRole('button', { name: 'JSON exportieren' }))
 
     await waitFor(async () => {
@@ -307,6 +340,7 @@ describe('App', () => {
 
     render(<App storage={storage} today="2026-05-15" />)
 
+    await openSettingsPage()
     const restoreInput = (await screen.findByLabelText('JSON wiederherstellen')) as HTMLInputElement
     expect(restoreInput).toHaveAttribute('accept', 'application/json,.json')
 
@@ -320,13 +354,15 @@ describe('App', () => {
       expect(confirmSpy).toHaveBeenCalledTimes(1)
       expect(await screen.findByRole('region', { name: 'Policy History' })).toBeInTheDocument()
       expect(document.documentElement.dataset.theme).toBe('dark')
+      await openSettingsPage()
       expect(screen.getByLabelText('Warning threshold')).toHaveValue(60)
+      await openMonthOverviewPage()
 
       const restoredOfficeCell = screen.getByRole('gridcell', { name: /13 Wednesday/i })
       const clearedCell = screen.getByRole('gridcell', { name: /15 Friday/i })
 
       expect(within(restoredOfficeCell).getByText('Office')).toBeInTheDocument()
-      expect(within(clearedCell).getByText('Unset')).toBeInTheDocument()
+      expect(within(clearedCell).queryByText('Unset')).not.toBeInTheDocument()
       expect(within(clearedCell).queryByText('Remote Work')).not.toBeInTheDocument()
 
       await expect(storage.load()).resolves.toMatchObject({
@@ -360,6 +396,7 @@ describe('App', () => {
 
     render(<App storage={storage} today="2026-05-15" />)
 
+    await openSettingsPage()
     fireEvent.change(await screen.findByLabelText('JSON wiederherstellen'), {
       target: {
         files: [incompatibleFile],
@@ -370,6 +407,8 @@ describe('App', () => {
       expect(confirmSpy).toHaveBeenCalledTimes(1)
       expect(screen.getByRole('alert')).toHaveTextContent(/schema version 2/i)
       expect(screen.getByRole('region', { name: 'Regelverlauf' })).toBeInTheDocument()
+
+      await openMonthOverviewPage()
 
       const unchangedCell = screen.getByRole('gridcell', { name: /15 Freitag/i })
       expect(within(unchangedCell).getByText('Mobiles Arbeiten')).toBeInTheDocument()
@@ -394,6 +433,7 @@ describe('App', () => {
 
     render(<App storage={storage} today="2026-05-15" />)
 
+    await openSettingsPage()
     fireEvent.change(await screen.findByLabelText('JSON wiederherstellen'), {
       target: {
         files: [malformedFile],
@@ -403,6 +443,8 @@ describe('App', () => {
     await waitFor(async () => {
       expect(screen.getByRole('alert')).toHaveTextContent('JSON-Datei ist ungültig.')
       expect(screen.getByRole('region', { name: 'Regelverlauf' })).toBeInTheDocument()
+
+      await openMonthOverviewPage()
 
       const unchangedCell = screen.getByRole('gridcell', { name: /15 Freitag/i })
       expect(within(unchangedCell).getByText('Mobiles Arbeiten')).toBeInTheDocument()
@@ -430,6 +472,7 @@ describe('App', () => {
 
     render(<App storage={storage} today="2026-05-15" />)
 
+    await openSettingsPage()
     fireEvent.click(await screen.findByRole('button', { name: 'JSON exportieren' }))
 
     await waitFor(() => {
@@ -439,17 +482,22 @@ describe('App', () => {
     const [exportedBlob] = createObjectUrlSpy.mock.calls[0] ?? []
     const exportedJson = await (exportedBlob as Blob).text()
 
+    await openSettingsPage()
     fireEvent.click(screen.getByLabelText('English'))
 
     await waitFor(() => {
       expect(screen.getByRole('region', { name: 'Policy History' })).toBeInTheDocument()
     })
 
+    await openMonthOverviewPage()
+
     fireEvent.click(screen.getByRole('gridcell', { name: /13 Wednesday/i }).querySelector('button') as HTMLElement)
 
     await waitFor(() => {
       expect(within(screen.getByRole('gridcell', { name: /13 Wednesday/i })).getByText('Remote Work')).toBeInTheDocument()
     })
+
+    await openSettingsPage()
 
     fireEvent.change(screen.getByLabelText('Restore JSON'), {
       target: {
@@ -458,10 +506,16 @@ describe('App', () => {
     })
 
     await waitFor(async () => {
-      expect(screen.getByRole('region', { name: 'Regelverlauf' })).toBeInTheDocument()
-      expect(screen.getByLabelText('Warnschwelle')).toHaveValue(75)
+      await expect(storage.load()).resolves.toMatchObject({
+        preferences: { language: 'de', theme: 'system', warningThreshold: 0.75 },
+      })
+    })
+
+    await openMonthOverviewPage()
+
+    await waitFor(async () => {
       expect(within(screen.getByRole('gridcell', { name: /15 Freitag/i })).getByText('Mobiles Arbeiten')).toBeInTheDocument()
-      expect(within(screen.getByRole('gridcell', { name: /13 Mittwoch/i })).getByText('Leer')).toBeInTheDocument()
+      expect(within(screen.getByRole('gridcell', { name: /13 Mittwoch/i })).queryByText('Leer')).not.toBeInTheDocument()
 
       await expect(storage.load()).resolves.toEqual({
         schemaVersion: 1,
@@ -485,12 +539,17 @@ describe('App', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Monatsübersicht')).toBeInTheDocument()
 
+    await openSettingsPage()
     fireEvent.click(screen.getByLabelText('English'))
+
+    expect(await screen.findByRole('region', { name: 'Personal Settings' })).toBeInTheDocument()
+
+    await openMonthOverviewPage()
 
     expect(await screen.findByText('Monthly Overview')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open yearly overview' })).toBeInTheDocument()
     expect(screen.getByRole('grid', { name: 'Monthly overview' })).toBeInTheDocument()
-    expect(screen.getByText('Remote Work')).toBeInTheDocument()
+    expect(screen.getAllByText('Remote Work').length).toBeGreaterThan(0)
     await expect(storage.load()).resolves.toMatchObject({
       preferences: {
         language: 'en',
@@ -512,6 +571,7 @@ describe('App', () => {
       await screen.findByRole('button', { name: 'Jahresübersicht öffnen' }),
     ).toBeInTheDocument()
 
+    await openSettingsPage()
     fireEvent.click(screen.getByLabelText('Dunkel'))
 
     await waitFor(async () => {
@@ -532,6 +592,11 @@ describe('App', () => {
 
     await waitFor(() => {
       expect(document.documentElement.dataset.theme).toBe('dark')
+    })
+
+    await openSettingsPage()
+
+    await waitFor(() => {
       expect(screen.getByRole('radio', { name: 'Dunkel' })).toBeChecked()
     })
   })
@@ -555,38 +620,43 @@ describe('App', () => {
 
     const firstView = render(<App storage={storage} today="2025-02-01" />)
     const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
-    const policyHistory = screen.getByRole('region', { name: 'Regelverlauf' })
 
     expectSummaryMetric(summaryPanel, 'Kontingent', '10')
+
+    await openSettingsPage()
+    const policyHistory = await screen.findByRole('region', { name: 'Regelverlauf' })
     expect(screen.getByLabelText('Wirksamkeitsmonat')).toHaveAttribute('min', '2025-02')
 
     const entriesBefore = within(policyHistory).getAllByRole('listitem')
-    expect(entriesBefore[0]).toHaveTextContent('1900-01')
-    expect(entriesBefore[1]).toHaveTextContent('2025-01')
+    expect(entriesBefore[0]).toHaveTextContent('2025-01')
 
     fireEvent.change(screen.getByLabelText('Quote'), { target: { value: '20' } })
     fireEvent.change(screen.getByLabelText('Bundesland'), { target: { value: 'BY' } })
     fireEvent.change(screen.getByLabelText('Wirksamkeitsmonat'), { target: { value: '2025-02' } })
     fireEvent.click(screen.getByRole('button', { name: 'Eintrag hinzufügen' }))
 
+    await openMonthOverviewPage()
+
     await waitFor(() => {
-      expectSummaryMetric(summaryPanel, 'Kontingent', '4')
-      expect(screen.getAllByText('Quote 20 % · Bundesland BY')).toHaveLength(2)
+      expectSummaryMetric(screen.getByRole('region', { name: 'Monatsstand' }), 'Kontingent', '4')
+      expect(screen.getByText('Quote 20 % · Bundesland BY')).toBeInTheDocument()
     })
 
-    const entriesAfter = within(policyHistory).getAllByRole('listitem')
-    expect(entriesAfter[0]).toHaveTextContent('1900-01')
-    expect(entriesAfter[1]).toHaveTextContent('2025-01')
-    expect(entriesAfter[2]).toHaveTextContent('2025-02')
+    await openSettingsPage()
+    const refreshedPolicyHistory = await screen.findByRole('region', { name: 'Regelverlauf' })
+    const entriesAfter = within(refreshedPolicyHistory).getAllByRole('listitem')
+    expect(entriesAfter[0]).toHaveTextContent('2025-01')
+    expect(entriesAfter[1]).toHaveTextContent('2025-02')
 
     firstView.unmount()
     render(<App storage={storage} today="2025-02-01" />)
 
-    expect(await screen.findByRole('region', { name: 'Regelverlauf' })).toBeInTheDocument()
+    await openSettingsPage()
+    const reloadedPolicyHistory = await screen.findByRole('region', { name: 'Regelverlauf' })
 
     await waitFor(() => {
-      expect(screen.getAllByText('Quote 20 % · Bundesland BY')).toHaveLength(2)
-      expect(screen.getByText('2025-02')).toBeInTheDocument()
+      expect(within(reloadedPolicyHistory).getByText('Quote 20 % · Bundesland BY')).toBeInTheDocument()
+      expect(within(reloadedPolicyHistory).getByText('2025-02')).toBeInTheDocument()
     })
   })
 
@@ -602,34 +672,40 @@ describe('App', () => {
     render(<App storage={storage} today="2025-02-01" />)
 
     const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
-    const policyHistory = screen.getByRole('region', { name: 'Regelverlauf' })
-    const monthsBefore = within(policyHistory)
-      .getAllByRole('listitem')
-      .map((item) => within(item).getByText(/\d{4}-\d{2}/).textContent)
 
     expectSummaryMetric(summaryPanel, 'Kontingent', '8')
     expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 / 8')
     expectSummaryMetric(summaryPanel, 'Büro', '1')
 
+    await openSettingsPage()
+    const policyHistory = await screen.findByRole('region', { name: 'Regelverlauf' })
+    const monthsBefore = within(policyHistory)
+      .getAllByRole('listitem')
+      .map((item) => within(item).getByText(/\d{4}-\d{2}/).textContent)
+
     fireEvent.click(screen.getByLabelText('English'))
-    expect(await screen.findByRole('region', { name: 'Policy History' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Personal Settings' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Dark'))
     fireEvent.change(screen.getByLabelText('Warning threshold'), {
       target: { value: '10' },
     })
 
-    await waitFor(async () => {
-      expect(screen.getByRole('region', { name: 'Policy History' })).toBeInTheDocument()
+    await openMonthOverviewPage()
+
+    await waitFor(() => {
       expectSummaryMetric(screen.getByRole('region', { name: 'Monthly status' }), 'Allowance', '8')
       expectSummaryMetric(screen.getByRole('region', { name: 'Monthly status' }), 'Remote Work', '1 / 8')
       expectSummaryMetric(screen.getByRole('region', { name: 'Monthly status' }), 'Office', '1')
+    })
 
-      const monthsAfter = within(screen.getByRole('region', { name: 'Policy History' }))
-        .getAllByRole('listitem')
-        .map((item) => within(item).getByText(/\d{4}-\d{2}/).textContent)
+    await openSettingsPage()
+    const monthsAfter = within(await screen.findByRole('region', { name: 'Policy History' }))
+      .getAllByRole('listitem')
+      .map((item) => within(item).getByText(/\d{4}-\d{2}/).textContent)
 
-      expect(monthsAfter).toEqual(monthsBefore)
+    expect(monthsAfter).toEqual(monthsBefore)
+    await waitFor(async () => {
       await expect(storage.load()).resolves.toMatchObject({
         policyHistory: [
           { effectiveMonth: '1900-01', quota: 0.6, bundesland: 'BE' },
@@ -663,6 +739,30 @@ describe('App', () => {
     expectSummaryMetric(summaryPanel, 'Kontingent', '4')
     expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '5 / 4')
     expect(within(summaryPanel).getByText('Über Limit')).toBeInTheDocument()
+    expect(summaryPanel.querySelector('.usage-panel')).toHaveAttribute('data-status', 'over-limit')
+  })
+
+  it('shows the legend and today marker, moves settings behind the cog button, and offers other absence in the detail dialog', async () => {
+    render(<App storage={createTestStorage()} today="2026-05-15" />)
+
+    const todayCell = await screen.findByRole('gridcell', { name: /15 Freitag/i })
+
+    expect(todayCell).toHaveClass('day-card--today')
+    expect(screen.getByLabelText('Farblegende')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Persönliche Einstellungen' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Regelverlauf' })).not.toBeInTheDocument()
+
+    await openSettingsPage()
+    expect(await screen.findByRole('region', { name: 'Persönliche Einstellungen' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Regelverlauf' })).toBeInTheDocument()
+
+    await openMonthOverviewPage()
+
+    const refreshedTodayCell = await screen.findByRole('gridcell', { name: /15 Freitag/i })
+
+    fireEvent.contextMenu(within(refreshedTodayCell).getByRole('button'))
+
+    expect(await screen.findByRole('radio', { name: 'Sonstiges' })).toBeInTheDocument()
   })
 
   it('shows not-applicable when a month has no working days after absences', async () => {
@@ -702,7 +802,7 @@ describe('App', () => {
     const calendar = screen.getByRole('grid', { name: 'Monatsübersicht' })
     expect(within(calendar).getAllByRole('gridcell')).toHaveLength(31)
 
-    expect(within(calendar).getByRole('gridcell', { name: /14 Donnerstag/i })).toHaveTextContent(
+    expect(within(calendar).getByRole('gridcell', { name: /14 Donnerstag/i })).not.toHaveTextContent(
       'Buchung',
     )
     expect(within(calendar).getByRole('gridcell', { name: /18 Montag/i })).toHaveTextContent(
@@ -926,7 +1026,7 @@ describe('App', () => {
     })
 
     const clearedCell = await firstRender.findByRole('gridcell', { name: /15 Freitag/i })
-    expect(within(clearedCell).getByText('Leer')).toBeInTheDocument()
+    expect(within(clearedCell).queryByText('Leer')).not.toBeInTheDocument()
     expect(within(clearedCell).queryByText('Desk day')).not.toBeInTheDocument()
 
     view.unmount()

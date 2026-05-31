@@ -59,7 +59,7 @@ interface BrowserStorageDb extends DBSchema {
 
 const DEFAULT_DB_NAME = 'homie-browser-storage'
 const DEFAULT_SCHEMA_VERSION = 1
-const DAY_ENTRY_STATUSES = ['remote-work', 'office', 'vacation', 'sick'] as const
+const DAY_ENTRY_STATUSES = ['remote-work', 'office', 'vacation', 'sick', 'other'] as const
 const LANGUAGES = ['de', 'en'] as const
 const THEMES = ['light', 'dark', 'system'] as const
 export const BUNDESLAENDER = [

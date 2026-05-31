@@ -67,7 +67,7 @@ describe('createBrowserStorage', () => {
 
     await storage.saveDayEntry({
       date: '2026-05-05',
-      status: 'remote-work',
+      status: 'other',
       note: 'Focus time',
     })
 
@@ -75,7 +75,7 @@ describe('createBrowserStorage', () => {
       entries: [
         {
           date: '2026-05-05',
-          status: 'remote-work',
+          status: 'other',
           note: 'Focus time',
         },
       ],
