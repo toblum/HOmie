@@ -1657,8 +1657,8 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 step={1}
                 value={Math.round(snapshot.preferences.warningThreshold * 100)}
                 onChange={(event) => {
-                  // Treat empty input as no-op to prevent accidentally resetting threshold to 0%
                   if (event.target.value === '') {
+                    event.target.value = String(Math.round(snapshot.preferences.warningThreshold * 100))
                     return
                   }
 
@@ -1690,7 +1690,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                   {t.exportJson}
                 </button>
 
-                <label className="ghost-button file-trigger" tabIndex={0}>
+                <label className="ghost-button file-trigger">
                   <span>{t.restoreJson}</span>
                   <input
                     aria-label={t.restoreJson}

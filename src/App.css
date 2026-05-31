@@ -763,6 +763,13 @@
   color: var(--text-h);
 }
 
+.ghost-button:focus-visible,
+.primary-button:focus-visible,
+.file-trigger:focus-within {
+  outline: 2px solid #1f4b99;
+  outline-offset: 2px;
+}
+
 .primary-button {
   border: 0;
   background: #1f4b99;
