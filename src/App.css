@@ -53,6 +53,26 @@
   background-size: 20px 20px;
 }
 
+/* Status spectrum gradient strip — all work statuses visualised in one signature line */
+.hero-panel::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--tone-remote-border)    0%,
+    var(--tone-office-border)   22%,
+    var(--accent)               44%,
+    var(--tone-vacation-border) 62%,
+    var(--tone-sick-border)     80%,
+    var(--tone-other-border)   100%
+  );
+  z-index: 3;
+  opacity: 0.9;
+}
+
 .hero-panel > * {
   position: relative;
   z-index: 2;
@@ -67,6 +87,13 @@
   color: var(--text-h);
   text-align: center;
   margin: 0;
+}
+
+:root[data-theme='dark'] .hero-panel h1 {
+  background: linear-gradient(135deg, #c4b5fd 0%, #818cf8 52%, #93c5fd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .hero-heading-row {
@@ -201,6 +228,14 @@
   text-transform: uppercase;
 }
 
+.eyebrow::before {
+  content: "// ";
+  color: var(--accent);
+  opacity: 0.7;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
 .lead {
   max-width: 36rem;
   font-size: 0.95rem;
@@ -331,7 +366,7 @@
 .summary-metric dd {
   margin: 0;
   font-family: var(--mono);
-  font-size: clamp(1.2rem, 1vw + 0.9rem, 1.6rem);
+  font-size: clamp(1.5rem, 1.5vw + 1rem, 2.1rem);
   font-weight: 800;
   line-height: 1.1;
   color: var(--text-h);
@@ -369,7 +404,7 @@
 
 .usage-copy strong {
   font-family: var(--mono);
-  font-size: clamp(1.5rem, 1vw + 1.2rem, 2.2rem);
+  font-size: clamp(2rem, 2vw + 1.5rem, 3rem);
   font-weight: 800;
   line-height: 1;
   color: var(--text-h);
@@ -388,7 +423,7 @@
   height: 100%;
   border-radius: inherit;
   transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  background: var(--tone-remote-border);
+  background: linear-gradient(90deg, var(--tone-remote-border), var(--accent));
 }
 
 .usage-panel[data-status='warning'] .usage-meter-fill {
@@ -484,7 +519,7 @@
 .calendar-weekdays span {
   text-align: center;
   padding: 0.25rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  border-bottom: 2px solid var(--accent-soft);
 }
 
 /* Core Calendar Grid */
@@ -507,7 +542,7 @@
 .day-card {
   min-height: 0;
   height: 100%;
-  border-radius: 8px;
+  border-radius: 5px;
   overflow: hidden;
   border: 1px solid var(--border);
   color: var(--text);
@@ -662,6 +697,13 @@
 .tone-other .day-status { color: var(--tone-other-text); }
 .tone-other:hover { box-shadow: 0 0 12px var(--tone-other-glow); }
 
+/* Active cells: day number adopts status color — instant visual scan */
+.tone-remote-work .day-number { color: var(--tone-remote-text); }
+.tone-office .day-number      { color: var(--tone-office-text); }
+.tone-vacation .day-number    { color: var(--tone-vacation-text); }
+.tone-sick .day-number        { color: var(--tone-sick-text); }
+.tone-other .day-number       { color: var(--tone-other-text); }
+
 /* Non-working days (disabled gridcards) */
 .tone-non-working {
   background: rgba(0, 0, 0, 0.025);
@@ -695,7 +737,19 @@
 /* Today emphasis glow indicator */
 .day-card--today {
   border: 1px solid var(--accent) !important;
-  box-shadow: 0 0 14px var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent-soft), 0 0 24px var(--accent-soft);
+}
+
+.day-card--today::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 5px 5px 0 0;
+  z-index: 1;
 }
 
 .day-card--today::after {
@@ -1089,7 +1143,7 @@
   background: var(--accent-strong);
   border-color: var(--accent-strong);
   transform: translateY(-1px);
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 10px var(--accent-soft);
 }
 
 .primary-button:disabled {
