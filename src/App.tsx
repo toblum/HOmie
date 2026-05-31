@@ -60,6 +60,7 @@ type TranslationDictionary = {
   monthlyStatus: string
   openYearOverview: string
   openMonthOverview: string
+  openSettings: string
   yearCardsCount: string
   policyPerMonth: string
   evaluation: string
@@ -113,6 +114,7 @@ type TranslationDictionary = {
   calendarLegend: string
   calendarHint: string
   otherAbsence: string
+  settingsLead: string
 }
 
 const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionary> = {
@@ -135,6 +137,7 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     monthlyStatus: 'Monatsstand',
     openYearOverview: 'Jahresübersicht öffnen',
     openMonthOverview: 'Monatsübersicht öffnen',
+    openSettings: 'Einstellungen öffnen',
     yearCardsCount: '12 Monatskarten',
     policyPerMonth: 'Regelverlauf wird pro Monat separat aufgelöst.',
     evaluation: 'Auswertung',
@@ -189,6 +192,7 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     calendarLegend: 'Farblegende',
     calendarHint: 'Linksklick wechselt den Status. Rechtsklick öffnet Details und Notiz.',
     otherAbsence: 'Sonstiges',
+    settingsLead: 'Persönliche Einstellungen, Regelverlauf und lokale Datensicherung an einem Ort.',
   },
   en: {
     monthOverview: 'Monthly Overview',
@@ -209,6 +213,7 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     monthlyStatus: 'Monthly status',
     openYearOverview: 'Open yearly overview',
     openMonthOverview: 'Open monthly overview',
+    openSettings: 'Open settings',
     yearCardsCount: '12 month cards',
     policyPerMonth: 'Policy history resolves independently for each month.',
     evaluation: 'Evaluation',
@@ -263,6 +268,7 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     calendarLegend: 'Color legend',
     calendarHint: 'Left click cycles the status. Right click opens details and note.',
     otherAbsence: 'Other',
+    settingsLead: 'Personal settings, policy history, and local backup in one place.',
   },
 }
 
@@ -382,7 +388,7 @@ interface CalendarMonthViewModel {
   evaluation: MonthEvaluation
 }
 
-type ViewMode = 'month' | 'year'
+type ViewMode = 'month' | 'year' | 'settings'
 
 interface YearMonthCardViewModel {
   monthKey: EffectiveMonth
@@ -403,6 +409,7 @@ interface HomieAppState {
   selectedMonth: EffectiveMonth
   selectedYear: number
   viewMode: ViewMode
+  lastOverviewMode: Extract<ViewMode, 'month' | 'year'>
   snapshot: BrowserStorageState | null
   isLoading: boolean
   error: string | null
@@ -417,6 +424,7 @@ interface HomieAppState {
   navigateYear: (offset: number) => void
   openYearOverview: () => void
   openMonthOverview: () => void
+  openSettingsPage: () => void
   selectMonth: (monthKey: EffectiveMonth) => void
   cycleDayStatus: (date: IsoDate) => Promise<void>
   openDetailView: (date: IsoDate) => void
@@ -437,6 +445,7 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
   selectedMonth: toMonthKey(DEFAULT_TODAY),
   selectedYear: Number(toMonthKey(DEFAULT_TODAY).slice(0, 4)),
   viewMode: 'month',
+  lastOverviewMode: 'month',
   snapshot: null,
   isLoading: true,
   error: null,
@@ -450,6 +459,7 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
       selectedMonth: toMonthKey(today),
       selectedYear: Number(toMonthKey(today).slice(0, 4)),
       viewMode: 'month',
+      lastOverviewMode: 'month',
       isLoading: true,
       error: null,
       detailDate: null,
@@ -467,6 +477,7 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
         selectedMonth: toMonthKey(today),
         selectedYear: Number(toMonthKey(today).slice(0, 4)),
         viewMode: 'month',
+        lastOverviewMode: 'month',
         snapshot,
         isLoading: false,
         error: null,
@@ -526,7 +537,7 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
     })
   },
   async restoreSnapshot(state) {
-    const { storage, selectedMonth, selectedYear, viewMode } = get()
+    const { storage, selectedMonth, selectedYear, viewMode, lastOverviewMode } = get()
 
     await storage.restoreState(state)
 
@@ -536,8 +547,12 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
     set({
       snapshot,
       selectedMonth,
-      selectedYear: viewMode === 'month' ? getYearFromMonthKey(selectedMonth) : selectedYear,
+      selectedYear:
+        viewMode === 'month' || (viewMode === 'settings' && lastOverviewMode === 'month')
+          ? getYearFromMonthKey(selectedMonth)
+          : selectedYear,
       viewMode,
+      lastOverviewMode,
       isLoading: false,
       error: null,
       detailDate: null,
@@ -554,6 +569,7 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
       selectedMonth: nextMonth,
       selectedYear: getYearFromMonthKey(nextMonth),
       viewMode: 'month',
+      lastOverviewMode: 'month',
     })
   },
   navigateYear(offset) {
@@ -562,6 +578,7 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
     set({
       selectedYear: selectedYear + offset,
       viewMode: 'year',
+      lastOverviewMode: 'year',
     })
   },
   openYearOverview() {
@@ -569,17 +586,27 @@ const useHomieStore = create<HomieAppState>((set, get) => ({
 
     set({
       viewMode: 'year',
+      lastOverviewMode: 'year',
       selectedYear: getYearFromMonthKey(selectedMonth),
     })
   },
   openMonthOverview() {
-    set({ viewMode: 'month' })
+    set({ viewMode: 'month', lastOverviewMode: 'month' })
+  },
+  openSettingsPage() {
+    const { viewMode, lastOverviewMode } = get()
+
+    set({
+      viewMode: 'settings',
+      lastOverviewMode: viewMode === 'year' || viewMode === 'month' ? viewMode : lastOverviewMode,
+    })
   },
   selectMonth(monthKey) {
     set({
       selectedMonth: monthKey,
       selectedYear: getYearFromMonthKey(monthKey),
       viewMode: 'month',
+      lastOverviewMode: 'month',
     })
   },
   async cycleDayStatus(date) {
@@ -1339,6 +1366,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     navigateYear,
     openYearOverview,
     openMonthOverview,
+    openSettingsPage,
     selectMonth,
     cycleDayStatus,
     openDetailView,
@@ -1349,6 +1377,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     selectedMonth,
     selectedYear,
     viewMode,
+    lastOverviewMode,
     snapshot,
     isLoading,
     error,
@@ -1435,6 +1464,12 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     { tone: 'sick', label: STATUS_LABELS[language].sick },
     { tone: 'other', label: t.otherAbsence },
   ] as const
+  const heroEyebrow =
+    viewMode === 'month' ? t.monthOverview : viewMode === 'year' ? t.yearOverview : t.settings
+  const heroTitle =
+    viewMode === 'month' ? calendar.heading : viewMode === 'year' ? String(yearOverview.year) : t.settings
+  const heroLead = viewMode === 'month' ? monthLead : viewMode === 'year' ? t.yearLead : t.settingsLead
+  const settingsReturnLabel = lastOverviewMode === 'year' ? t.openYearOverview : t.openMonthOverview
 
   const handleExportJson = async () => {
     const exportedState = await storage.exportState()
@@ -1510,42 +1545,75 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     <main className="app-shell">
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">{viewMode === 'month' ? t.monthOverview : t.yearOverview}</p>
+          <p className="eyebrow">{heroEyebrow}</p>
           <div className="hero-heading-row">
-            <button
-              type="button"
-              className="month-nav-button"
-              aria-label={viewMode === 'month' ? t.previousMonth : t.previousYear}
-              onClick={() => {
-                if (viewMode === 'month') {
-                  navigateMonth(-1)
-                  return
-                }
+            {viewMode === 'settings' ? (
+              <button
+                type="button"
+                className="month-nav-button"
+                aria-label={settingsReturnLabel}
+                onClick={() => {
+                  if (lastOverviewMode === 'year') {
+                    openYearOverview()
+                    return
+                  }
 
-                navigateYear(-1)
-              }}
-            >
-              {viewMode === 'month' ? t.previousMonthButton : t.previousYearButton}
-            </button>
-            <h1>{viewMode === 'month' ? calendar.heading : String(yearOverview.year)}</h1>
-            <button
-              type="button"
-              className="month-nav-button"
-              aria-label={viewMode === 'month' ? t.nextMonth : t.nextYear}
-              onClick={() => {
-                if (viewMode === 'month') {
-                  navigateMonth(1)
-                  return
-                }
+                  openMonthOverview()
+                }}
+              >
+                {lastOverviewMode === 'year' ? t.previousYearButton : t.previousMonthButton}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="month-nav-button"
+                aria-label={viewMode === 'month' ? t.previousMonth : t.previousYear}
+                onClick={() => {
+                  if (viewMode === 'month') {
+                    navigateMonth(-1)
+                    return
+                  }
 
-                navigateYear(1)
-              }}
-            >
-              {viewMode === 'month' ? t.nextMonthButton : t.nextYearButton}
-            </button>
+                  navigateYear(-1)
+                }}
+              >
+                {viewMode === 'month' ? t.previousMonthButton : t.previousYearButton}
+              </button>
+            )}
+            <h1>{heroTitle}</h1>
+            <div className="hero-heading-actions">
+              {viewMode === 'settings' ? null : (
+                <button
+                  type="button"
+                  className="month-nav-button"
+                  aria-label={viewMode === 'month' ? t.nextMonth : t.nextYear}
+                  onClick={() => {
+                    if (viewMode === 'month') {
+                      navigateMonth(1)
+                      return
+                    }
+
+                    navigateYear(1)
+                  }}
+                >
+                  {viewMode === 'month' ? t.nextMonthButton : t.nextYearButton}
+                </button>
+              )}
+              <button
+                type="button"
+                className={`icon-button${viewMode === 'settings' ? ' icon-button-active' : ''}`}
+                aria-label={t.openSettings}
+                aria-pressed={viewMode === 'settings'}
+                onClick={openSettingsPage}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.08 7.08 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.49-.42h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.13.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.4 1.05.71 1.63.94l.36 2.54c.04.24.25.42.49.42h3.84c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.13-.54 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <p className="lead">
-            {viewMode === 'month' ? monthLead : t.yearLead}
+            {heroLead}
           </p>
         </div>
 
@@ -1562,12 +1630,31 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 {t.openYearOverview}
               </button>
             </>
-          ) : (
+          ) : viewMode === 'year' ? (
             <>
               <div className="status-pill">{t.yearCardsCount}</div>
               <p className="policy-chip">{t.policyPerMonth}</p>
               <button type="button" className="hero-toggle-button" onClick={openMonthOverview}>
                 {t.openMonthOverview}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="status-pill">{visiblePolicyHistory.length}</div>
+              <p className="policy-chip">{t.policyHistory}</p>
+              <button
+                type="button"
+                className="hero-toggle-button"
+                onClick={() => {
+                  if (lastOverviewMode === 'year') {
+                    openYearOverview()
+                    return
+                  }
+
+                  openMonthOverview()
+                }}
+              >
+                {settingsReturnLabel}
               </button>
             </>
           )}
@@ -1732,15 +1819,56 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
             </div>
           </section>
 
-          <details className="settings-panel collapsible-panel" role="region" aria-label={t.personalSettings}>
-            <summary className="collapsible-summary">
+        </>
+      ) : viewMode === 'year' ? (
+        <section className="year-panel" aria-label={t.yearOverview}>
+          <div className="year-grid">
+            {yearOverview.cards.map((card) => (
+              <button
+                key={card.monthKey}
+                type="button"
+                className={`year-card status-${card.monthStatus}`}
+                aria-label={t.openMonth(card.heading)}
+                onClick={() => {
+                  selectMonth(card.monthKey)
+                }}
+              >
+                <span className="year-card-topline">
+                  <span className="year-card-month">{card.heading}</span>
+                  <span className={`status-pill status-${card.monthStatus}`}>
+                    {monthStatusLabels[card.monthStatus]}
+                  </span>
+                </span>
+                <span className="year-card-policy">
+                  {t.quota} {Math.round(card.policy.quota * 100)} % · {t.federalState} {card.policy.bundesland}
+                </span>
+                <dl className="year-card-metrics">
+                  <div>
+                    <dt>{t.remoteWork}</dt>
+                    <dd>
+                      {card.evaluation.remoteWorkDays} / {card.evaluation.allowance}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t.office}</dt>
+                    <dd>{card.evaluation.officeDays}</dd>
+                  </div>
+                </dl>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section className="settings-page" aria-label={t.settings}>
+          <section className="settings-panel" role="region" aria-label={t.personalSettings}>
+            <div className="summary-panel-head">
               <div>
                 <p className="eyebrow">{t.settings}</p>
                 <h2>{t.personalSettings}</h2>
               </div>
-            </summary>
+            </div>
 
-            <div className="collapsible-body collapsible-settings-body">
+            <div className="settings-page-grid">
             <fieldset className="settings-fieldset">
               <legend>{t.language}</legend>
               <label className="settings-choice">
@@ -1878,17 +2006,17 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
               ) : null}
             </div>
             </div>
-          </details>
+          </section>
 
-          <details className="settings-panel collapsible-panel" role="region" aria-label={t.policyHistory}>
-            <summary className="collapsible-summary">
+          <section className="settings-panel" role="region" aria-label={t.policyHistory}>
+            <div className="summary-panel-head">
               <div>
                 <p className="eyebrow">{t.policyHistory}</p>
                 <h2>{t.policyHistory}</h2>
               </div>
-            </summary>
+            </div>
 
-            <div className="collapsible-body collapsible-policy-body">
+            <div className="policy-history-page-body">
             <ol className="policy-history-list">
               {visiblePolicyHistory.map((entry) => (
                 <li key={entry.effectiveMonth} className="policy-history-item">
@@ -1979,45 +2107,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
               </button>
             </form>
             </div>
-          </details>
-        </>
-      ) : (
-        <section className="year-panel" aria-label={t.yearOverview}>
-          <div className="year-grid">
-            {yearOverview.cards.map((card) => (
-              <button
-                key={card.monthKey}
-                type="button"
-                className={`year-card status-${card.monthStatus}`}
-                aria-label={t.openMonth(card.heading)}
-                onClick={() => {
-                  selectMonth(card.monthKey)
-                }}
-              >
-                <span className="year-card-topline">
-                  <span className="year-card-month">{card.heading}</span>
-                  <span className={`status-pill status-${card.monthStatus}`}>
-                    {monthStatusLabels[card.monthStatus]}
-                  </span>
-                </span>
-                <span className="year-card-policy">
-                  {t.quota} {Math.round(card.policy.quota * 100)} % · {t.federalState} {card.policy.bundesland}
-                </span>
-                <dl className="year-card-metrics">
-                  <div>
-                    <dt>{t.remoteWork}</dt>
-                    <dd>
-                      {card.evaluation.remoteWorkDays} / {card.evaluation.allowance}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{t.office}</dt>
-                    <dd>{card.evaluation.officeDays}</dd>
-                  </div>
-                </dl>
-              </button>
-            ))}
-          </div>
+          </section>
         </section>
       )}
 
