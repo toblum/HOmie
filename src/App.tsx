@@ -74,9 +74,13 @@ type TranslationDictionary = {
   usageSummary: (input: { remoteWorkDays: number; allowance: number }) => string
   monthView: string
   monthGrid: string
+  monthlyReport: string
+  printReport: string
   personalSettings: string
   policyHistory: string
   settings: string
+  dateColumn: string
+  dayKindColumn: string
   language: string
   theme: string
   german: string
@@ -87,6 +91,7 @@ type TranslationDictionary = {
   warningThreshold: string
   localBackup: string
   localBackupLead: string
+  exportCsv: string
   exportJson: string
   restoreJson: string
   restoreWarning: string
@@ -141,9 +146,13 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
       `${remoteWorkDays} von ${allowance} möglichen Mobiles-Arbeiten-Tagen genutzt.`,
     monthView: 'Monatsansicht',
     monthGrid: 'Monatsübersicht',
+    monthlyReport: 'Monatsbericht',
+    printReport: 'Bericht drucken',
     personalSettings: 'Persönliche Einstellungen',
     policyHistory: 'Regelverlauf',
     settings: 'Einstellungen',
+    dateColumn: 'Datum',
+    dayKindColumn: 'Tagart',
     language: 'Sprache',
     theme: 'Thema',
     german: 'Deutsch',
@@ -154,6 +163,7 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     warningThreshold: 'Warnschwelle',
     localBackup: 'Datensicherung',
     localBackupLead: 'Export und Restore des kompletten lokalen Zustands als JSON-Datei.',
+    exportCsv: 'CSV exportieren',
     exportJson: 'JSON exportieren',
     restoreJson: 'JSON wiederherstellen',
     restoreWarning: 'Der aktuelle lokale Datenbestand wird vollständig ersetzt. Fortfahren?',
@@ -206,9 +216,13 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
       `${remoteWorkDays} of ${allowance} available remote-work days used.`,
     monthView: 'Month view',
     monthGrid: 'Monthly overview',
+    monthlyReport: 'Monthly report',
+    printReport: 'Print report',
     personalSettings: 'Personal Settings',
     policyHistory: 'Policy History',
     settings: 'Settings',
+    dateColumn: 'Date',
+    dayKindColumn: 'Day kind',
     language: 'Language',
     theme: 'Theme',
     german: 'Deutsch',
@@ -219,6 +233,7 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     warningThreshold: 'Warning threshold',
     localBackup: 'Data backup',
     localBackupLead: 'Export and restore the complete local state as a JSON file.',
+    exportCsv: 'Export CSV',
     exportJson: 'Export JSON',
     restoreJson: 'Restore JSON',
     restoreWarning: 'This replaces the entire current local dataset. Continue?',
@@ -862,8 +877,391 @@ function getDayNumber(date: IsoDate): string {
   return date.slice(8, 10)
 }
 
-function buildExportFilename(today: IsoDate): string {
+function isWorkingClassification(classification: DayClassification): boolean {
+  return classification.kind === 'working-day' || classification.kind === 'overridden-working-day'
+}
+
+function buildJsonExportFilename(today: IsoDate): string {
   return `homie-export-${today}.json`
+}
+
+function buildCsvExportFilename(monthKey: EffectiveMonth): string {
+  return `homie-month-${monthKey}.csv`
+}
+
+function escapeCsvValue(value: string): string {
+  const escapedValue = /^[=+\-@]/.test(value) ? `'${value}` : value
+
+  if (!/[",\n\r]/.test(escapedValue)) {
+    return escapedValue
+  }
+
+  return `"${escapedValue.replaceAll('"', '""')}"`
+}
+
+function serializeMonthAsCsv(calendar: CalendarMonthViewModel): string {
+  const header = 'date,dayKind,status,note'
+  const rows = calendar.days.map((day) => {
+    const columns = [
+      day.classification.date,
+      isWorkingClassification(day.classification) ? 'arbeitstag' : 'nicht-arbeitstag',
+      day.entry?.status ?? 'unset',
+      day.entry?.note ?? '',
+    ]
+
+    return columns.map(escapeCsvValue).join(',')
+  })
+
+  return [header, ...rows].join('\n')
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const downloadUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = downloadUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(downloadUrl), 100)
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function buildMonthlyReportHtml(input: {
+  calendar: CalendarMonthViewModel
+  language: PersonalPreferences['language']
+  t: TranslationDictionary
+  dayKindLabels: Record<DayClassification['kind'], string>
+  monthStatusLabel: string
+}): string {
+  const { calendar, language, t, dayKindLabels, monthStatusLabel } = input
+  const summaryMetrics = [
+    { label: t.workingDays, value: String(calendar.evaluation.workingDays) },
+    { label: t.allowance, value: String(calendar.evaluation.allowance) },
+    {
+      label: t.remoteWork,
+      value: `${calendar.evaluation.remoteWorkDays} / ${calendar.evaluation.allowance}`,
+    },
+    { label: t.office, value: String(calendar.evaluation.officeDays) },
+    { label: t.absence, value: String(calendar.evaluation.absenceDays) },
+    { label: t.openWorkingDays, value: String(calendar.evaluation.openWorkingDays) },
+  ]
+
+  const reportRows = calendar.days
+    .map((day) => {
+      const isOpenWorkingDay = isWorkingClassification(day.classification) && !day.entry
+      const note = day.entry?.note?.trim() ?? ''
+
+      return `
+        <tr class="report-row${isOpenWorkingDay ? ' report-row-open' : ''}">
+          <td>
+            <time datetime="${escapeHtml(day.classification.date)}">${escapeHtml(
+              formatFullDate(day.classification.date, language),
+            )}</time>
+          </td>
+          <td>${escapeHtml(dayKindLabels[day.classification.kind])}</td>
+          <td>
+            <span class="report-status report-status-${escapeHtml(day.tone)}">${escapeHtml(
+              day.statusLabel,
+            )}</span>
+          </td>
+          <td>${note ? escapeHtml(note) : ''}</td>
+        </tr>`
+    })
+    .join('')
+
+  const summaryCards = summaryMetrics
+    .map(
+      (metric) => `
+        <article class="report-card">
+          <span>${escapeHtml(metric.label)}</span>
+          <strong>${escapeHtml(metric.value)}</strong>
+        </article>`,
+    )
+    .join('')
+
+  return `<!DOCTYPE html>
+<html lang="${language}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(t.monthlyReport)} · ${escapeHtml(calendar.heading)}</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1f2937;
+        --muted: #6b7280;
+        --paper: #fffdfa;
+        --paper-deep: #f3eadc;
+        --line: rgba(31, 41, 55, 0.12);
+        --accent: #143d73;
+        --accent-soft: rgba(20, 61, 115, 0.08);
+        --ok: #245245;
+        --warn: #8f5d00;
+        --empty: #6b7280;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font: 16px/1.5 'Avenir Next', 'Segoe UI', sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(248, 205, 74, 0.16), transparent 28%),
+          linear-gradient(180deg, #f6efe5, #efe7da);
+      }
+
+      .report-shell {
+        width: min(100%, 960px);
+        margin: 0 auto;
+        padding: 32px 24px 48px;
+      }
+
+      .report-hero {
+        padding: 28px;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(250, 244, 235, 0.92)),
+          var(--paper);
+        box-shadow: 0 20px 50px -38px rgba(15, 23, 42, 0.45);
+      }
+
+      .report-kicker {
+        margin: 0 0 8px;
+        color: #8c5a13;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .report-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: end;
+        justify-content: space-between;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        font-family: 'Iowan Old Style', 'Palatino Linotype', serif;
+        color: #152133;
+      }
+
+      h1 {
+        font-size: clamp(2.2rem, 5vw, 3.4rem);
+        line-height: 0.95;
+      }
+
+      h2 {
+        font-size: 1.15rem;
+      }
+
+      .report-subtitle {
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+
+      .report-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .report-badge {
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.82);
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .report-grid {
+        display: grid;
+        gap: 18px;
+        margin-top: 22px;
+      }
+
+      .report-summary {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      }
+
+      .report-card,
+      .report-table-wrap {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: 0 14px 34px -30px rgba(15, 23, 42, 0.45);
+      }
+
+      .report-card {
+        padding: 16px 18px;
+      }
+
+      .report-card span {
+        display: block;
+        color: var(--muted);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .report-card strong {
+        display: block;
+        margin-top: 8px;
+        font-size: 1.4rem;
+      }
+
+      .report-table-wrap {
+        overflow: hidden;
+      }
+
+      .report-table-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 18px 20px 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      thead th {
+        padding: 14px 20px 12px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-align: left;
+        text-transform: uppercase;
+      }
+
+      tbody td {
+        padding: 14px 20px;
+        border-bottom: 1px solid rgba(31, 41, 55, 0.08);
+        vertical-align: top;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .report-row-open {
+        background: linear-gradient(90deg, rgba(20, 61, 115, 0.06), transparent 75%);
+      }
+
+      .report-status {
+        display: inline-flex;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+        background: rgba(31, 41, 55, 0.08);
+      }
+
+      .report-status-empty,
+      .report-status-non-working {
+        color: var(--empty);
+      }
+
+      .report-status-remote-work,
+      .report-status-office {
+        color: var(--accent);
+      }
+
+      .report-status-vacation,
+      .report-status-sick {
+        color: var(--warn);
+      }
+
+      @media print {
+        body {
+          background: #ffffff;
+        }
+
+        .report-shell {
+          width: 100%;
+          padding: 0;
+        }
+
+        .report-hero,
+        .report-card,
+        .report-table-wrap {
+          box-shadow: none;
+        }
+
+        .report-row,
+        .report-card {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="report-shell">
+      <section class="report-hero">
+        <p class="report-kicker">HOmie</p>
+        <div class="report-title-row">
+          <div>
+            <h1>${escapeHtml(t.monthlyReport)}</h1>
+            <p class="report-subtitle">${escapeHtml(calendar.heading)}</p>
+          </div>
+          <div class="report-badges">
+            <span class="report-badge">${escapeHtml(t.monthlyStatus)} ${escapeHtml(monthStatusLabel)}</span>
+            <span class="report-badge">${escapeHtml(t.quota)} ${Math.round(calendar.policy.quota * 100)} %</span>
+            <span class="report-badge">${escapeHtml(t.federalState)} ${escapeHtml(calendar.policy.bundesland)}</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="report-grid">
+        <div class="report-summary">${summaryCards}</div>
+
+        <section class="report-table-wrap">
+          <div class="report-table-head">
+            <h2>${escapeHtml(t.monthView)}</h2>
+            <span class="report-badge">${escapeHtml(t.usage)} ${escapeHtml(
+              formatUsagePercentage(calendar.evaluation.usagePercentage),
+            )}</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">${escapeHtml(t.dateColumn)}</th>
+                <th scope="col">${escapeHtml(t.dayKindColumn)}</th>
+                <th scope="col">${escapeHtml(t.status)}</th>
+                <th scope="col">${escapeHtml(t.note)}</th>
+              </tr>
+            </thead>
+            <tbody>${reportRows}</tbody>
+          </table>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>`
 }
 
 function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
@@ -895,6 +1293,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   } = useHomieStore()
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const [restoreSuccess, setRestoreSuccess] = useState<string | null>(null)
+  const [warningThresholdInput, setWarningThresholdInput] = useState<string | null>(null)
 
   useEffect(() => {
     void initialize({ storage, today })
@@ -951,6 +1350,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   const calendar = buildCalendarMonthViewModel(selectedMonth, today, snapshot, language)
   const latestPolicyEntry = snapshot.policyHistory[snapshot.policyHistory.length - 1] ?? DEFAULT_POLICY_ENTRY
   const minimumNextPolicyMonth = shiftMonthKey(latestPolicyEntry.effectiveMonth, 1)
+  const warningThresholdPercentage = Math.round(snapshot.preferences.warningThreshold * 100)
   const monthStatus = classifyMonthStatus({
     evaluation: calendar.evaluation,
     warningThreshold: snapshot.preferences.warningThreshold,
@@ -962,15 +1362,36 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     const blob = new Blob([JSON.stringify(exportedState, null, 2)], {
       type: 'application/json',
     })
-    const downloadUrl = URL.createObjectURL(blob)
-    const link = document.createElement('a')
+    downloadBlob(blob, buildJsonExportFilename(today))
+  }
 
-    link.href = downloadUrl
-    link.download = buildExportFilename(today)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    setTimeout(() => URL.revokeObjectURL(downloadUrl), 100) // defer revocation to avoid cancelled downloads in some browsers
+  const handleExportCsv = () => {
+    const blob = new Blob([serializeMonthAsCsv(calendar)], {
+      type: 'text/csv;charset=utf-8',
+    })
+
+    downloadBlob(blob, buildCsvExportFilename(selectedMonth))
+  }
+
+  const handlePrintReport = () => {
+    const reportWindow = window.open('', '_blank')
+
+    if (!reportWindow) {
+      return
+    }
+
+    reportWindow.opener = null
+    reportWindow.document.write(
+      buildMonthlyReportHtml({
+        calendar,
+        language,
+        t,
+        dayKindLabels,
+        monthStatusLabel: monthStatusLabels[monthStatus],
+      }),
+    )
+    reportWindow.document.close()
+    reportWindow.focus()
   }
 
   const handleRestoreFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1082,8 +1503,20 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 <p className="eyebrow">{t.evaluation}</p>
                 <h2>{t.monthlyStatus}</h2>
               </div>
-              <div className={`status-pill status-${monthStatus}`}>
-                {monthStatusLabels[monthStatus]}
+              <div className="summary-panel-actions">
+                <button type="button" className="primary-button" onClick={handlePrintReport}>
+                  {t.printReport}
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={handleExportCsv}
+                >
+                  {t.exportCsv}
+                </button>
+                <div className={`status-pill status-${monthStatus}`}>
+                  {monthStatusLabels[monthStatus]}
+                </div>
               </div>
             </div>
 
@@ -1224,14 +1657,19 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 min={0}
                 max={100}
                 step={1}
-                value={Math.round(snapshot.preferences.warningThreshold * 100)}
+                value={warningThresholdInput ?? String(warningThresholdPercentage)}
+                onBlur={() => {
+                  setWarningThresholdInput(null)
+                }}
                 onChange={(event) => {
-                  // Treat empty input as no-op to prevent accidentally resetting threshold to 0%
-                  if (event.target.value === '') {
+                  const nextInput = event.target.value
+                  setWarningThresholdInput(nextInput)
+
+                  if (nextInput === '') {
                     return
                   }
 
-                  const nextValue = Number(event.target.value)
+                  const nextValue = Number(nextInput)
 
                   if (Number.isNaN(nextValue) || nextValue < 0 || nextValue > 100) {
                     return
@@ -1259,7 +1697,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                   {t.exportJson}
                 </button>
 
-                <label className="ghost-button file-trigger" tabIndex={0}>
+                <label className="ghost-button file-trigger">
                   <span>{t.restoreJson}</span>
                   <input
                     aria-label={t.restoreJson}

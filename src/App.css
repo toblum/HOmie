@@ -171,6 +171,14 @@
   justify-content: space-between;
 }
 
+.summary-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .settings-fieldset {
   display: grid;
   gap: 0.7rem;
@@ -753,6 +761,13 @@
   border: 1px solid rgba(53, 63, 82, 0.14);
   background: rgba(255, 255, 255, 0.7);
   color: var(--text-h);
+}
+
+.ghost-button:focus-visible,
+.primary-button:focus-visible,
+.file-trigger:focus-within {
+  outline: 2px solid #1f4b99;
+  outline-offset: 2px;
 }
 
 .primary-button {
