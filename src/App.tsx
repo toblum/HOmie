@@ -35,7 +35,7 @@ const STATUS_SEQUENCE: Array<DayEntryStatus | 'unset'> = [
 const DEFAULT_POLICY_ENTRY: PolicyHistoryEntry = {
   effectiveMonth: '1900-01',
   quota: 0.6,
-  bundesland: 'BE',
+  bundesland: 'SL',
 }
 const LOCALE_BY_LANGUAGE: Record<PersonalPreferences['language'], string> = {
   de: 'de-DE',
@@ -832,13 +832,10 @@ function buildCalendarMonthViewModel(
       const isInteractive =
         classification.kind === 'working-day' || classification.kind === 'overridden-working-day'
       const isToday = classification.date === today
-      const isPlanningDay = isInteractive && classification.date > today
-
       return {
         classification,
         isInteractive,
         isToday,
-        ...(isPlanningDay ? { temporalLabel: TRANSLATIONS[language].planning } : {}),
         statusLabel: STATUS_LABELS[language][entry?.status ?? 'unset'],
         tone: getDayTone(classification, entry),
         ...(entry ? { entry } : {}),
