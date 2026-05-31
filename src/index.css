@@ -1,21 +1,63 @@
 :root {
-  --text: #334155;
-  --text-h: #162032;
-  --muted: #637086;
-  --bg: #efe6d7;
-  --bg-deep: #f7f2e8;
-  --surface: rgba(255, 251, 245, 0.9);
-  --surface-strong: rgba(255, 255, 255, 0.94);
-  --border: rgba(70, 80, 99, 0.12);
-  --accent: #1f4b99;
-  --accent-strong: #143d73;
-  --accent-soft: rgba(64, 148, 180, 0.16);
-  --shadow:
-    0 12px 30px -18px rgba(30, 41, 59, 0.45), 0 10px 18px -24px rgba(15, 23, 42, 0.4);
+  /* Font stacks */
+  --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --display: var(--sans); /* Clean and modern, no old serif book fonts */
 
-  --sans: 'Avenir Next', 'Segoe UI', sans-serif;
-  --display: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
-  font: 18px/1.5 var(--sans);
+  /* Global light mode theme values (highly refined slate/zinc aesthetic) */
+  --text: #3f3f46; /* zinc-700 */
+  --text-h: #09090b; /* zinc-950 */
+  --muted: #71717a; /* zinc-500 */
+  --bg: #f4f4f5; /* zinc-100 */
+  --bg-deep: #e4e4e7; /* zinc-200 */
+  --surface: rgba(255, 255, 255, 0.85);
+  --surface-strong: #ffffff;
+  --border: rgba(9, 9, 11, 0.12);
+  
+  /* Accent colors */
+  --accent: #2563eb; /* royal blue */
+  --accent-strong: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.06);
+  --shadow: 0 4px 12px -2px rgba(9, 9, 11, 0.05), 0 2px 6px -1px rgba(9, 9, 11, 0.03);
+  --shadow-lg: 0 20px 25px -5px rgba(9, 9, 11, 0.08), 0 8px 10px -6px rgba(9, 9, 11, 0.08);
+
+  /* Button and translucency variables - Light Mode */
+  --button-bg: rgba(9, 9, 11, 0.05);
+  --button-hover-bg: rgba(9, 9, 11, 0.10);
+  --card-bg: rgba(9, 9, 11, 0.02);
+  --card-hover-shadow: 0 10px 15px -3px rgba(9, 9, 11, 0.06), 0 4px 6px -2px rgba(9, 9, 11, 0.04);
+
+  /* Status Tokens - Light Mode */
+  --tone-empty-bg: #f4f4f5;
+  --tone-empty-border: rgba(9, 9, 11, 0.08);
+  --tone-empty-text: #71717a;
+  
+  --tone-remote-bg: #ecfdf5;
+  --tone-remote-border: #10b981;
+  --tone-remote-text: #047857;
+  --tone-remote-glow: rgba(16, 185, 129, 0.1);
+
+  --tone-office-bg: #eff6ff;
+  --tone-office-border: #3b82f6;
+  --tone-office-text: #1d4ed8;
+  --tone-office-glow: rgba(59, 130, 246, 0.1);
+
+  --tone-vacation-bg: #faf5ff;
+  --tone-vacation-border: #a855f7;
+  --tone-vacation-text: #7e22ce;
+  --tone-vacation-glow: rgba(168, 85, 247, 0.1);
+
+  --tone-sick-bg: #fff1f2;
+  --tone-sick-border: #f43f5e;
+  --tone-sick-text: #be123c;
+  --tone-sick-glow: rgba(244, 63, 94, 0.1);
+
+  --tone-other-bg: #f8fafc;
+  --tone-other-border: #64748b;
+  --tone-other-text: #475569;
+  --tone-other-glow: rgba(100, 116, 139, 0.1);
+
+  font: 14px/1.55 var(--sans);
   color-scheme: light;
   color: var(--text);
   background: var(--bg);
@@ -26,28 +68,68 @@
 }
 
 :root[data-theme='dark'] {
-  --text: #d9e2ee;
-  --text-h: #f7f4ed;
-  --muted: #9fb0c5;
-  --bg: #111b2a;
-  --bg-deep: #0c1320;
-  --surface: rgba(19, 28, 43, 0.88);
-  --surface-strong: rgba(23, 34, 52, 0.94);
-  --border: rgba(159, 176, 197, 0.16);
-  --accent: #85d3c8;
-  --accent-strong: #246b5b;
-  --accent-soft: rgba(36, 107, 91, 0.22);
-  --shadow:
-    0 18px 36px -22px rgba(0, 0, 0, 0.72), 0 8px 18px -16px rgba(0, 0, 0, 0.68);
+  /* Global dark mode theme values (premium obsidian dark theme) */
+  --text: #cbd5e1; /* slate-300 */
+  --text-h: #fafafa; /* slate-50 */
+  --muted: #64748b; /* slate-500 */
+  --bg: #09090b; /* zinc-950 */
+  --bg-deep: #030303; 
+  --surface: rgba(15, 23, 42, 0.65); /* blue-gray-slate translucent */
+  --surface-strong: #1e293b; /* slate-800 */
+  --border: rgba(255, 255, 255, 0.08); /* fine developer border */
+  
+  /* Accent colors */
+  --accent: #3b52e2;
+  --accent-strong: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.08);
+  --shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.5), 0 2px 8px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+
+  /* Button and translucency variables - Dark Mode */
+  --button-bg: rgba(255, 255, 255, 0.04);
+  --button-hover-bg: rgba(255, 255, 255, 0.08);
+  --card-bg: rgba(255, 255, 255, 0.015);
+  --card-hover-shadow: 0 10px 16px -4px rgba(0, 0, 0, 0.4);
+
+  /* Status Tokens - Dark Mode */
+  --tone-empty-bg: rgba(24, 24, 27, 0.6);
+  --tone-empty-border: rgba(255, 255, 255, 0.06);
+  --tone-empty-text: #71717a;
+  
+  --tone-remote-bg: rgba(16, 185, 129, 0.06);
+  --tone-remote-border: rgba(16, 185, 129, 0.4);
+  --tone-remote-text: #34d399;
+  --tone-remote-glow: rgba(16, 185, 129, 0.15);
+
+  --tone-office-bg: rgba(59, 130, 246, 0.06);
+  --tone-office-border: rgba(59, 130, 246, 0.4);
+  --tone-office-text: #60a5fa;
+  --tone-office-glow: rgba(59, 130, 246, 0.15);
+
+  --tone-vacation-bg: rgba(168, 85, 247, 0.06);
+  --tone-vacation-border: rgba(168, 85, 247, 0.4);
+  --tone-vacation-text: #c084fc;
+  --tone-vacation-glow: rgba(168, 85, 247, 0.15);
+
+  --tone-sick-bg: rgba(244, 63, 94, 0.06);
+  --tone-sick-border: rgba(244, 63, 94, 0.4);
+  --tone-sick-text: #f87171;
+  --tone-sick-glow: rgba(244, 63, 94, 0.15);
+
+  --tone-other-bg: rgba(100, 116, 139, 0.06);
+  --tone-other-border: rgba(100, 116, 139, 0.4);
+  --tone-other-text: #94a3b8;
+  --tone-other-glow: rgba(100, 116, 139, 0.15);
+
   color-scheme: dark;
 }
 
 #root {
-  width: min(100%, 72rem);
+  width: min(100%, 84rem);
   max-width: 100%;
   margin: 0 auto;
   min-height: 100vh;
-  padding: 4rem 1.5rem;
+  padding: 3rem 1.5rem;
   box-sizing: border-box;
 }
 
@@ -55,9 +137,9 @@ body {
   margin: 0;
   min-width: 320px;
   background:
-    radial-gradient(circle at top left, var(--accent-soft), transparent 32%),
-    radial-gradient(circle at top right, rgba(248, 205, 74, 0.14), transparent 24%),
+    radial-gradient(circle at top left, var(--accent-soft), transparent 35%),
     linear-gradient(180deg, var(--bg), var(--bg-deep));
+  transition: background-color 0.2s ease;
 }
 
 h1,

@@ -1550,7 +1550,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
             {viewMode === 'settings' ? (
               <button
                 type="button"
-                className="month-nav-button"
+                className="month-nav-button month-nav-button--prev"
                 aria-label={settingsReturnLabel}
                 onClick={() => {
                   if (lastOverviewMode === 'year') {
@@ -1566,7 +1566,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
             ) : (
               <button
                 type="button"
-                className="month-nav-button"
+                className="month-nav-button month-nav-button--prev"
                 aria-label={viewMode === 'month' ? t.previousMonth : t.previousYear}
                 onClick={() => {
                   if (viewMode === 'month') {
@@ -1585,7 +1585,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
               {viewMode === 'settings' ? null : (
                 <button
                   type="button"
-                  className="month-nav-button"
+                  className="month-nav-button month-nav-button--next"
                   aria-label={viewMode === 'month' ? t.nextMonth : t.nextYear}
                   onClick={() => {
                     if (viewMode === 'month') {
