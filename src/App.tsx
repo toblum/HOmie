@@ -30,6 +30,7 @@ const STATUS_SEQUENCE: Array<DayEntryStatus | 'unset'> = [
   'office',
   'vacation',
   'sick',
+  'other',
 ]
 const DEFAULT_POLICY_ENTRY: PolicyHistoryEntry = {
   effectiveMonth: '1900-01',
@@ -46,7 +47,7 @@ type TranslationDictionary = {
   yearOverview: string
   loadingHeading: string
   storageError: string
-  monthLead: string
+  monthLead: (input: { openWorkingDays: number; usagePercentage: number }) => string
   yearLead: string
   previousMonth: string
   nextMonth: string
@@ -109,6 +110,9 @@ type TranslationDictionary = {
   save: string
   addEntry: string
   openMonth: (heading: string) => string
+  calendarLegend: string
+  calendarHint: string
+  otherAbsence: string
 }
 
 const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionary> = {
@@ -117,7 +121,8 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     yearOverview: 'Jahresübersicht',
     loadingHeading: 'HOmie wird geladen',
     storageError: 'Speicherfehler',
-    monthLead: 'Primäre Arbeitsfläche für Planung und Buchung mit sofortiger Speicherung in IndexedDB.',
+    monthLead: ({ openWorkingDays, usagePercentage }) =>
+      `${openWorkingDays} Arbeitstage noch offen - ${Math.round(usagePercentage)} % Kontingent genutzt.`,
     yearLead: 'Jahresweite Auswertung mit einem Monatsstand pro Karte und direktem Sprung zurück in die Monatsübersicht.',
     previousMonth: 'Vorheriger Monat',
     nextMonth: 'Nächster Monat',
@@ -181,13 +186,17 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     save: 'Speichern',
     addEntry: 'Eintrag hinzufügen',
     openMonth: (heading) => `${heading} öffnen`,
+    calendarLegend: 'Farblegende',
+    calendarHint: 'Linksklick wechselt den Status. Rechtsklick öffnet Details und Notiz.',
+    otherAbsence: 'Sonstiges',
   },
   en: {
     monthOverview: 'Monthly Overview',
     yearOverview: 'Yearly Overview',
     loadingHeading: 'HOmie is loading',
     storageError: 'Storage error',
-    monthLead: 'Primary workspace for planning and booking with immediate persistence to IndexedDB.',
+    monthLead: ({ openWorkingDays, usagePercentage }) =>
+      `${openWorkingDays} working days still open - ${Math.round(usagePercentage)}% of allowance used.`,
     yearLead: 'Year-wide evaluation with one monthly status per card and a direct jump back into the monthly overview.',
     previousMonth: 'Previous month',
     nextMonth: 'Next month',
@@ -251,6 +260,9 @@ const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionar
     save: 'Save',
     addEntry: 'Add entry',
     openMonth: (heading) => `Open ${heading}`,
+    calendarLegend: 'Color legend',
+    calendarHint: 'Left click cycles the status. Right click opens details and note.',
+    otherAbsence: 'Other',
   },
 }
 
@@ -264,6 +276,7 @@ const STATUS_LABELS: Record<
     office: 'Büro',
     vacation: 'Urlaub',
     sick: 'Krank',
+    other: 'Sonstiges',
   },
   en: {
     unset: 'Unset',
@@ -271,6 +284,49 @@ const STATUS_LABELS: Record<
     office: 'Office',
     vacation: 'Vacation',
     sick: 'Sick',
+    other: 'Other',
+  },
+}
+
+const BUNDESLAND_LABELS: Record<
+  PersonalPreferences['language'],
+  Record<(typeof BUNDESLAENDER)[number], string>
+> = {
+  de: {
+    BB: 'Brandenburg',
+    BE: 'Berlin',
+    BW: 'Baden-Württemberg',
+    BY: 'Bayern',
+    HB: 'Bremen',
+    HE: 'Hessen',
+    HH: 'Hamburg',
+    MV: 'Mecklenburg-Vorpommern',
+    NI: 'Niedersachsen',
+    NW: 'Nordrhein-Westfalen',
+    RP: 'Rheinland-Pfalz',
+    SH: 'Schleswig-Holstein',
+    SL: 'Saarland',
+    SN: 'Sachsen',
+    ST: 'Sachsen-Anhalt',
+    TH: 'Thüringen',
+  },
+  en: {
+    BB: 'Brandenburg',
+    BE: 'Berlin',
+    BW: 'Baden-Wuerttemberg',
+    BY: 'Bavaria',
+    HB: 'Bremen',
+    HE: 'Hesse',
+    HH: 'Hamburg',
+    MV: 'Mecklenburg-Western Pomerania',
+    NI: 'Lower Saxony',
+    NW: 'North Rhine-Westphalia',
+    RP: 'Rhineland-Palatinate',
+    SH: 'Schleswig-Holstein',
+    SL: 'Saarland',
+    SN: 'Saxony',
+    ST: 'Saxony-Anhalt',
+    TH: 'Thuringia',
   },
 }
 
@@ -311,9 +367,10 @@ interface CalendarDayViewModel {
   classification: DayClassification
   entry?: DayEntry
   isInteractive: boolean
-  temporalLabel: string
+  isToday: boolean
+  temporalLabel?: string
   statusLabel: string
-  tone: 'empty' | 'remote-work' | 'office' | 'vacation' | 'sick' | 'non-working'
+  tone: 'empty' | 'remote-work' | 'office' | 'vacation' | 'sick' | 'other' | 'non-working'
 }
 
 interface CalendarMonthViewModel {
@@ -747,11 +804,14 @@ function buildCalendarMonthViewModel(
       const entry = entryByDate.get(classification.date)
       const isInteractive =
         classification.kind === 'working-day' || classification.kind === 'overridden-working-day'
+      const isToday = classification.date === today
+      const isPlanningDay = isInteractive && classification.date > today
 
       return {
         classification,
         isInteractive,
-        temporalLabel: classification.date <= today ? TRANSLATIONS[language].booking : TRANSLATIONS[language].planning,
+        isToday,
+        ...(isPlanningDay ? { temporalLabel: TRANSLATIONS[language].planning } : {}),
         statusLabel: STATUS_LABELS[language][entry?.status ?? 'unset'],
         tone: getDayTone(classification, entry),
         ...(entry ? { entry } : {}),
@@ -850,6 +910,10 @@ function getDayTone(
   }
 
   return entry?.status ?? 'empty'
+}
+
+function getVisiblePolicyHistory(policyHistory: PolicyHistoryEntry[]): PolicyHistoryEntry[] {
+  return policyHistory.filter((entry) => entry.effectiveMonth !== DEFAULT_POLICY_ENTRY.effectiveMonth)
 }
 
 function formatWeekday(date: IsoDate, language: PersonalPreferences['language']): string {
@@ -1192,7 +1256,8 @@ function buildMonthlyReportHtml(input: {
       }
 
       .report-status-vacation,
-      .report-status-sick {
+      .report-status-sick,
+      .report-status-other {
         color: var(--warn);
       }
 
@@ -1347,8 +1412,10 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   const t = TRANSLATIONS[language]
   const monthStatusLabels = MONTH_STATUS_LABELS[language]
   const dayKindLabels = DAY_KIND_LABELS[language]
+  const bundeslandLabels = BUNDESLAND_LABELS[language]
   const calendar = buildCalendarMonthViewModel(selectedMonth, today, snapshot, language)
   const latestPolicyEntry = snapshot.policyHistory[snapshot.policyHistory.length - 1] ?? DEFAULT_POLICY_ENTRY
+  const visiblePolicyHistory = getVisiblePolicyHistory(snapshot.policyHistory)
   const minimumNextPolicyMonth = shiftMonthKey(latestPolicyEntry.effectiveMonth, 1)
   const warningThresholdPercentage = Math.round(snapshot.preferences.warningThreshold * 100)
   const monthStatus = classifyMonthStatus({
@@ -1356,6 +1423,18 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
     warningThreshold: snapshot.preferences.warningThreshold,
   })
   const yearOverview = buildYearOverviewViewModel(selectedYear, today, snapshot, language)
+  const monthLead = t.monthLead({
+    openWorkingDays: calendar.evaluation.openWorkingDays,
+    usagePercentage: calendar.evaluation.usagePercentage,
+  })
+  const calendarLegend = [
+    { tone: 'empty', label: t.openWorkingDays },
+    { tone: 'remote-work', label: t.remoteWork },
+    { tone: 'office', label: t.office },
+    { tone: 'vacation', label: STATUS_LABELS[language].vacation },
+    { tone: 'sick', label: STATUS_LABELS[language].sick },
+    { tone: 'other', label: t.otherAbsence },
+  ] as const
 
   const handleExportJson = async () => {
     const exportedState = await storage.exportState()
@@ -1466,7 +1545,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
             </button>
           </div>
           <p className="lead">
-            {viewMode === 'month' ? t.monthLead : t.yearLead}
+            {viewMode === 'month' ? monthLead : t.yearLead}
           </p>
         </div>
 
@@ -1497,6 +1576,81 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
 
       {viewMode === 'month' ? (
         <>
+          <section className="calendar-panel" aria-label={t.monthView}>
+            <div className="calendar-panel-head">
+              <div>
+                <p className="eyebrow">{t.monthView}</p>
+                <h2>{calendar.heading}</h2>
+                <p className="calendar-copy">{t.calendarHint}</p>
+              </div>
+
+              <div className="calendar-legend" aria-label={t.calendarLegend}>
+                {calendarLegend.map((item) => (
+                  <span key={item.tone} className="legend-item">
+                    <span className={`legend-swatch tone-${item.tone}`} aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="calendar-weekdays" aria-hidden="true">
+              {calendar.weekdayHeaders.map((weekday) => (
+                <span key={weekday}>{weekday}</span>
+              ))}
+            </div>
+
+            <div className="calendar-grid" role="grid" aria-label={t.monthGrid}>
+              {Array.from({ length: calendar.leadingBlankCount }, (_, index) => (
+                <div key={`blank-${index}`} className="calendar-blank" aria-hidden="true" />
+              ))}
+
+              {calendar.days.map((day) => (
+                <article
+                  key={day.classification.date}
+                  role="gridcell"
+                  aria-current={day.isToday ? 'date' : undefined}
+                  aria-label={`${Number(getDayNumber(day.classification.date))} ${formatWeekday(day.classification.date, language)}`}
+                  className={`day-card tone-${day.tone} kind-${day.classification.kind}${day.isToday ? ' day-card--today' : ''}`}
+                >
+                  {day.isInteractive ? (
+                    <button
+                      type="button"
+                      className="day-button"
+                      onClick={() => {
+                        void cycleDayStatus(day.classification.date)
+                      }}
+                      onContextMenu={(event) => {
+                        event.preventDefault()
+                        openDetailView(day.classification.date)
+                      }}
+                    >
+                      <span className="day-topline">
+                        <span className="day-number">{getDayNumber(day.classification.date)}</span>
+                        <span className="day-weekday">{formatWeekday(day.classification.date, language)}</span>
+                      </span>
+                      {day.temporalLabel ? <span className="day-phase">{day.temporalLabel}</span> : null}
+                      {day.entry ? <strong className="day-status">{day.statusLabel}</strong> : null}
+                      {day.entry?.note ? <span className="day-note">{day.entry.note}</span> : null}
+                    </button>
+                  ) : (
+                    <div className="day-static">
+                      <span className="day-topline">
+                        <span className="day-number">{getDayNumber(day.classification.date)}</span>
+                        <span className="day-weekday">{formatWeekday(day.classification.date, language)}</span>
+                      </span>
+                      {day.temporalLabel ? <span className="day-phase">{day.temporalLabel}</span> : null}
+                      <strong className="day-status">{dayKindLabels[day.classification.kind]}</strong>
+                      {day.classification.holidayName ? (
+                        <span className="day-note">{day.classification.holidayName}</span>
+                      ) : null}
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+
           <section className="summary-panel" aria-label={t.monthlyStatus}>
             <div className="summary-panel-head">
               <div>
@@ -1549,7 +1703,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
               </div>
             </dl>
 
-            <div className="usage-panel">
+            <div className="usage-panel" data-status={monthStatus}>
               <div className="usage-copy">
                 <div>
                   <p className="usage-label">{t.usage}</p>
@@ -1578,14 +1732,15 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
             </div>
           </section>
 
-          <section className="settings-panel" aria-label={t.personalSettings}>
-            <div className="summary-panel-head">
+          <details className="settings-panel collapsible-panel" role="region" aria-label={t.personalSettings}>
+            <summary className="collapsible-summary">
               <div>
                 <p className="eyebrow">{t.settings}</p>
                 <h2>{t.personalSettings}</h2>
               </div>
-            </div>
+            </summary>
 
+            <div className="collapsible-body collapsible-settings-body">
             <fieldset className="settings-fieldset">
               <legend>{t.language}</legend>
               <label className="settings-choice">
@@ -1722,18 +1877,20 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 </p>
               ) : null}
             </div>
-          </section>
+            </div>
+          </details>
 
-          <section className="settings-panel" aria-label={t.policyHistory}>
-            <div className="summary-panel-head">
+          <details className="settings-panel collapsible-panel" role="region" aria-label={t.policyHistory}>
+            <summary className="collapsible-summary">
               <div>
                 <p className="eyebrow">{t.policyHistory}</p>
                 <h2>{t.policyHistory}</h2>
               </div>
-            </div>
+            </summary>
 
+            <div className="collapsible-body collapsible-policy-body">
             <ol className="policy-history-list">
-              {snapshot.policyHistory.map((entry) => (
+              {visiblePolicyHistory.map((entry) => (
                 <li key={entry.effectiveMonth} className="policy-history-item">
                   <strong>{entry.effectiveMonth}</strong>
                   <span>
@@ -1799,7 +1956,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 >
                   {BUNDESLAENDER.map((bundesland) => (
                     <option key={bundesland} value={bundesland}>
-                      {bundesland}
+                      {bundeslandLabels[bundesland]} ({bundesland})
                     </option>
                   ))}
                 </select>
@@ -1821,64 +1978,8 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
                 {t.addEntry}
               </button>
             </form>
-          </section>
-
-          <section className="calendar-panel" aria-label={t.monthView}>
-            <div className="calendar-weekdays" aria-hidden="true">
-              {calendar.weekdayHeaders.map((weekday) => (
-                <span key={weekday}>{weekday}</span>
-              ))}
             </div>
-
-            <div className="calendar-grid" role="grid" aria-label={t.monthGrid}>
-              {Array.from({ length: calendar.leadingBlankCount }, (_, index) => (
-                <div key={`blank-${index}`} className="calendar-blank" aria-hidden="true" />
-              ))}
-
-              {calendar.days.map((day) => (
-                <article
-                  key={day.classification.date}
-                  role="gridcell"
-                  aria-label={`${Number(getDayNumber(day.classification.date))} ${formatWeekday(day.classification.date, language)}`}
-                  className={`day-card tone-${day.tone} kind-${day.classification.kind}`}
-                >
-                  {day.isInteractive ? (
-                    <button
-                      type="button"
-                      className="day-button"
-                      onClick={() => {
-                        void cycleDayStatus(day.classification.date)
-                      }}
-                      onContextMenu={(event) => {
-                        event.preventDefault()
-                        openDetailView(day.classification.date)
-                      }}
-                    >
-                      <span className="day-topline">
-                        <span className="day-number">{getDayNumber(day.classification.date)}</span>
-                        <span className="day-weekday">{formatWeekday(day.classification.date, language)}</span>
-                      </span>
-                      <span className="day-phase">{day.temporalLabel}</span>
-                      <strong className="day-status">{day.statusLabel}</strong>
-                      {day.entry?.note ? <span className="day-note">{day.entry.note}</span> : null}
-                    </button>
-                  ) : (
-                    <div className="day-static">
-                      <span className="day-topline">
-                        <span className="day-number">{getDayNumber(day.classification.date)}</span>
-                        <span className="day-weekday">{formatWeekday(day.classification.date, language)}</span>
-                      </span>
-                      <span className="day-phase">{day.temporalLabel}</span>
-                      <strong className="day-status">{dayKindLabels[day.classification.kind]}</strong>
-                      {day.classification.holidayName ? (
-                        <span className="day-note">{day.classification.holidayName}</span>
-                      ) : null}
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
-          </section>
+          </details>
         </>
       ) : (
         <section className="year-panel" aria-label={t.yearOverview}>
