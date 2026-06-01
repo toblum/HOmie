@@ -791,7 +791,7 @@ describe('App', () => {
     expect(within(summaryPanel).getByText('Nicht anwendbar')).toBeInTheDocument()
   })
 
-  it('renders every day of the selected month and marks booking versus planning days', async () => {
+  it('renders every day of the selected month and marks booking days', async () => {
     render(<App storage={createTestStorage()} today="2026-05-15" />)
 
     expect(
@@ -806,9 +806,6 @@ describe('App', () => {
 
     expect(within(calendar).getByRole('gridcell', { name: /14 Donnerstag/i })).not.toHaveTextContent(
       'Buchung',
-    )
-    expect(within(calendar).getByRole('gridcell', { name: /18 Montag/i })).toHaveTextContent(
-      'Planung',
     )
   })
 

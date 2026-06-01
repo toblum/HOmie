@@ -100,7 +100,6 @@ export type TranslationDictionary = {
   restoreSucceeded: string
   effectiveMonth: string
   booking: string
-  planning: string
   detailView: string
   editDay: string
   status: string
@@ -256,7 +255,6 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     restoreSucceeded: 'JSON restored successfully.',
     effectiveMonth: 'Effective month',
     booking: 'Booking',
-    planning: 'Plan',
     detailView: 'Detail view',
     editDay: 'Edit day',
     status: 'Status',
@@ -378,7 +376,6 @@ export interface CalendarDayViewModel {
   entry?: DayEntry
   isInteractive: boolean
   isToday: boolean
-  temporalLabel?: string
   statusLabel: string
   tone: 'empty' | 'remote-work' | 'office' | 'vacation' | 'sick' | 'other' | 'non-working'
 }
@@ -839,9 +836,6 @@ export function buildCalendarMonthViewModel(
         statusLabel: STATUS_LABELS[language][entry?.status ?? 'unset'],
         tone: getDayTone(classification, entry),
         ...(entry ? { entry } : {}),
-        ...(isInteractive && classification.date > today
-          ? { temporalLabel: TRANSLATIONS[language].planning }
-          : {}),
       }
     }),
   }

@@ -597,7 +597,6 @@
   display: none; /* redundant - header Mo-So is clean enough on desktop */
 }
 
-.day-phase,
 .day-note {
   font-size: 0.74rem;
   line-height: 1.2;
@@ -616,25 +615,6 @@
   word-wrap: break-word;
   word-break: break-word;
   hyphens: auto;
-}
-
-.day-phase {
-  width: fit-content;
-  max-width: 100%;
-  border-radius: 4px;
-  padding: 0.1rem 0.4rem;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--muted);
-  font-family: var(--sans);
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid var(--border);
-}
-
-:root[data-theme='dark'] .day-phase {
-  background: rgba(255, 255, 255, 0.03);
 }
 
 .day-status {
