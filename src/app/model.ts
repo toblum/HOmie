@@ -178,7 +178,6 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     restoreSucceeded: 'JSON erfolgreich wiederhergestellt.',
     effectiveMonth: 'Wirksamkeitsmonat',
     booking: 'Buchung',
-    planning: 'Planung',
     detailView: 'Detailansicht',
     editDay: 'Tag bearbeiten',
     status: 'Status',
