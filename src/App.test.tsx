@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import * as calendarClassificationModule from './domain/calendarClassification'
+import * as monthEvaluationModule from './domain/monthEvaluation'
 import { createBrowserStorage, type BrowserStorage } from './storage/browserStorage'
 
 const createdDatabases = new Set<string>()
@@ -853,6 +855,35 @@ describe('App', () => {
     const juneSummary = await screen.findByRole('region', { name: 'Monatsstand' })
     expectSummaryMetric(juneSummary, 'Kontingent', '5')
     expectSummaryMetric(juneSummary, 'Mobiles Arbeiten', '1 / 5')
+  })
+
+  it('only evaluates the visible month while the monthly overview is active', async () => {
+    const classifyMonthSpy = vi.spyOn(calendarClassificationModule, 'classifyMonth')
+    const evaluateMonthSpy = vi.spyOn(monthEvaluationModule, 'evaluateMonth')
+
+    render(<App storage={createTestStorage()} today="2026-05-15" />)
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Mai 2026',
+      }),
+    ).toBeInTheDocument()
+
+    const initialClassificationCalls = classifyMonthSpy.mock.calls.length
+    const initialEvaluationCalls = evaluateMonthSpy.mock.calls.length
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vorheriger Monat' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'April 2026',
+      }),
+    ).toBeInTheDocument()
+
+    expect(classifyMonthSpy.mock.calls.length).toBe(initialClassificationCalls + 1)
+    expect(evaluateMonthSpy.mock.calls.length).toBe(initialEvaluationCalls + 1)
   })
 
   it('shows a Jahresübersicht with independently evaluated month cards for the selected year', async () => {
