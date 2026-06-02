@@ -372,6 +372,93 @@
   color: var(--text-h);
 }
 
+/* ==========================================================================
+   HOMEOFFICE QUOTA BAR
+   ========================================================================== */
+
+.homeoffice-bar-panel {
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem 1.2rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--border);
+}
+
+:root[data-theme='dark'] .homeoffice-bar-panel {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.homeoffice-bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.homeoffice-bar-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.homeoffice-bar-value {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.homeoffice-bar-value--over {
+  color: var(--tone-sick-border);
+}
+
+.homeoffice-bar {
+  position: relative;
+  height: 0.75rem;
+  border-radius: 99px;
+  background: var(--button-hover-bg);
+  overflow: visible;
+}
+
+.homeoffice-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(90deg, var(--tone-remote-border), var(--accent));
+}
+
+.homeoffice-bar-fill--over {
+  background: var(--tone-sick-border);
+}
+
+.homeoffice-bar-limit {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: calc(100% + 6px);
+  border-radius: 2px;
+  background: var(--text);
+  transform: translateX(-50%);
+  opacity: 0.5;
+}
+
+.homeoffice-bar-footer {
+  position: relative;
+  height: 1rem;
+}
+
+.homeoffice-bar-limit-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 /* Dashboard Progress and Meter Panel */
 .usage-panel {
   display: grid;

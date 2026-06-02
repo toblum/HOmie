@@ -198,6 +198,51 @@ function MonthOverview({
           </div>
         </dl>
 
+        {(() => {
+          const bookedDays = calendar.evaluation.remoteWorkDays + calendar.evaluation.officeDays
+          const actualRate = bookedDays > 0 ? calendar.evaluation.remoteWorkDays / bookedDays : 0
+          const actualPct = Math.round(actualRate * 100)
+          const allowedPct = Math.round(calendar.policy.quota * 100)
+          const isOver = actualRate > calendar.policy.quota
+          return (
+            <div className="homeoffice-bar-panel">
+              <div className="homeoffice-bar-head">
+                <span className="homeoffice-bar-label">
+                  {language === 'de' ? 'Homeoffice-Quote' : 'Home Office Rate'}
+                </span>
+                <span className={`homeoffice-bar-value${isOver ? ' homeoffice-bar-value--over' : ''}`}>
+                  {bookedDays > 0 ? `${actualPct} %` : '—'}
+                </span>
+              </div>
+              <div
+                className="homeoffice-bar"
+                role="progressbar"
+                aria-label={language === 'de' ? 'Homeoffice-Quote' : 'Home Office Rate'}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={actualPct}
+              >
+                <span
+                  className={`homeoffice-bar-fill${isOver ? ' homeoffice-bar-fill--over' : ''}`}
+                  style={{ width: `${Math.min(100, actualPct)}%` }}
+                />
+                <span
+                  className="homeoffice-bar-limit"
+                  style={{ left: `${allowedPct}%` }}
+                  aria-label={`${language === 'de' ? 'Erlaubt' : 'Allowed'}: ${allowedPct} %`}
+                  title={`${language === 'de' ? 'Erlaubt' : 'Allowed'}: ${allowedPct} %`}
+                />
+              </div>
+              <div className="homeoffice-bar-footer">
+                <span />
+                <span className="homeoffice-bar-limit-label" style={{ left: `${allowedPct}%` }}>
+                  {language === 'de' ? `Max. ${allowedPct} %` : `Max. ${allowedPct} %`}
+                </span>
+              </div>
+            </div>
+          )
+        })()}
+
         <div className="usage-panel" data-status={monthStatus}>
           <div className="usage-copy">
             <div>
