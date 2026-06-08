@@ -352,6 +352,32 @@
   grid-column: span 2;
 }
 
+.summary-metric--over-limit {
+  border-color: var(--tone-sick-border);
+  background: rgba(244, 63, 94, 0.06);
+}
+
+:root[data-theme='dark'] .summary-metric--over-limit {
+  background: rgba(244, 63, 94, 0.12);
+}
+
+.summary-metric--over-limit dd {
+  color: var(--tone-sick-border);
+}
+
+.summary-metric--on-track {
+  border-color: var(--tone-remote-border);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+:root[data-theme='dark'] .summary-metric--on-track {
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.summary-metric--on-track dd {
+  color: var(--tone-remote-border);
+}
+
 .summary-metric dt,
 .usage-label {
   margin: 0;

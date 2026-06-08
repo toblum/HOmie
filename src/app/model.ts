@@ -150,7 +150,7 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     federalState: 'Bundesland',
     allowance: 'Kontingent',
     remoteWork: 'Mobiles Arbeiten',
-    office: 'Büro',
+    office: 'Bürotage',
     absence: 'Abwesenheit',
     openWorkingDays: 'Offene Arbeitstage',
     usage: 'Verbrauch',
@@ -1052,7 +1052,7 @@ export function buildMonthlyReportHtml(input: {
     { label: t.allowance, value: String(calendar.evaluation.allowance) },
     {
       label: t.remoteWork,
-      value: `${calendar.evaluation.remoteWorkDays} / ${calendar.evaluation.allowance}`,
+      value: `${calendar.evaluation.remoteWorkDays} von ${calendar.evaluation.allowance}`,
     },
     { label: t.office, value: String(calendar.evaluation.officeDays) },
     { label: t.absence, value: String(calendar.evaluation.absenceDays) },

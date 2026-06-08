@@ -163,9 +163,6 @@ function MonthOverview({
             <button type="button" className="ghost-button" onClick={handleExportCsv}>
               {t.exportCsv}
             </button>
-            <div className={`status-pill status-${monthStatus}`}>
-              {monthStatusLabels[monthStatus]}
-            </div>
           </div>
         </div>
 
@@ -175,24 +172,27 @@ function MonthOverview({
             <dd>{calendar.evaluation.workingDays}</dd>
           </div>
           <div className="summary-metric">
-            <dt>{t.allowance}</dt>
-            <dd>{calendar.evaluation.allowance}</dd>
-          </div>
-          <div className="summary-metric summary-metric-wide">
-            <dt>{t.remoteWork}</dt>
-            <dd>
-              {calendar.evaluation.remoteWorkDays} / {calendar.evaluation.allowance}
-            </dd>
-          </div>
-          <div className="summary-metric">
             <dt>{t.office}</dt>
             <dd>{calendar.evaluation.officeDays}</dd>
           </div>
+          {
+            (() => {
+              const overLimit = calendar.evaluation.remoteWorkDays > calendar.evaluation.allowance
+              return (
+                <div className={`summary-metric summary-metric-wide${overLimit ? ' summary-metric--over-limit' : ' summary-metric--on-track'}`}>
+                  <dt>{t.remoteWork}</dt>
+                  <dd>
+                    {calendar.evaluation.remoteWorkDays} von {calendar.evaluation.allowance}
+                  </dd>
+                </div>
+              )
+            })()
+          }
           <div className="summary-metric">
             <dt>{t.absence}</dt>
             <dd>{calendar.evaluation.absenceDays}</dd>
           </div>
-          <div className="summary-metric summary-metric-wide">
+          <div className="summary-metric">
             <dt>{t.openWorkingDays}</dt>
             <dd>{calendar.evaluation.openWorkingDays}</dd>
           </div>

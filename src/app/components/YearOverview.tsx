@@ -37,7 +37,7 @@ function YearOverview({ yearOverview, language, t, onSelectMonth }: YearOverview
               <div>
                 <dt>{t.remoteWork}</dt>
                 <dd>
-                  {card.evaluation.remoteWorkDays} / {card.evaluation.allowance}
+                  {card.evaluation.remoteWorkDays} von {card.evaluation.allowance}
                 </dd>
               </div>
               <div>

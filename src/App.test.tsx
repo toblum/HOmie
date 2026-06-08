@@ -95,9 +95,8 @@ describe('App', () => {
     const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
 
     expectSummaryMetric(summaryPanel, 'Arbeitstage', '20')
-    expectSummaryMetric(summaryPanel, 'Kontingent', '10')
-    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 / 10')
-    expectSummaryMetric(summaryPanel, 'Büro', '1')
+    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 von 10')
+    expectSummaryMetric(summaryPanel, 'Bürotage', '1')
     expectSummaryMetric(summaryPanel, 'Abwesenheit', '0')
     expectSummaryMetric(summaryPanel, 'Offene Arbeitstage', '18')
     expect(within(summaryPanel).getByText('Verbrauch')).toBeInTheDocument()
@@ -116,7 +115,7 @@ describe('App', () => {
     fireEvent.click(within(dayCell).getByRole('button'))
 
     await waitFor(() => {
-      expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 / 10')
+      expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 von 10')
       expect(within(summaryPanel).getByText('10 %')).toBeInTheDocument()
     })
   })
@@ -143,8 +142,7 @@ describe('App', () => {
 
     const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
 
-    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '8 / 10')
-    expect(within(summaryPanel).getByText('Warnung')).toBeInTheDocument()
+    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '8 von 10')
   })
 
   it('updates the warning threshold immediately from personal settings and persists it', async () => {
@@ -166,9 +164,6 @@ describe('App', () => {
 
     render(<App storage={storage} today="2025-02-01" />)
 
-    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
-    expect(within(summaryPanel).getByText('Normal')).toBeInTheDocument()
-
     await openSettingsPage()
     fireEvent.change(screen.getByLabelText('Warnschwelle'), {
       target: { value: '75' },
@@ -177,7 +172,6 @@ describe('App', () => {
     await openMonthOverviewPage()
 
     await waitFor(async () => {
-      expect(within(screen.getByRole('region', { name: 'Monatsstand' })).getByText('Warnung')).toBeInTheDocument()
       await expect(storage.load()).resolves.toMatchObject({
         preferences: {
           warningThreshold: 0.75,
@@ -188,8 +182,6 @@ describe('App', () => {
     cleanup()
     render(<App storage={storage} today="2025-02-01" />)
 
-    const reloadedSummary = await screen.findByRole('region', { name: 'Monatsstand' })
-    expect(within(reloadedSummary).getByText('Warnung')).toBeInTheDocument()
     await openSettingsPage()
     expect(screen.getByLabelText('Warnschwelle')).toHaveValue(75)
   })
@@ -621,9 +613,6 @@ describe('App', () => {
     }
 
     const firstView = render(<App storage={storage} today="2025-02-01" />)
-    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
-
-    expectSummaryMetric(summaryPanel, 'Kontingent', '10')
 
     await openSettingsPage()
     const policyHistory = await screen.findByRole('region', { name: 'Regelverlauf' })
@@ -640,7 +629,7 @@ describe('App', () => {
     await openMonthOverviewPage()
 
     await waitFor(() => {
-      expectSummaryMetric(screen.getByRole('region', { name: 'Monatsstand' }), 'Kontingent', '4')
+      expectSummaryMetric(screen.getByRole('region', { name: 'Monatsstand' }), 'Mobiles Arbeiten', '5 von 4')
       expect(screen.getByText((content) => content.includes('Quote 20 %') && content.includes('Bundesland BY'))).toBeInTheDocument()
     })
 
@@ -675,9 +664,8 @@ describe('App', () => {
 
     const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
 
-    expectSummaryMetric(summaryPanel, 'Kontingent', '8')
-    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 / 8')
-    expectSummaryMetric(summaryPanel, 'Büro', '1')
+    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '1 von 8')
+    expectSummaryMetric(summaryPanel, 'Bürotage', '1')
 
     await openSettingsPage()
     const policyHistory = await screen.findByRole('region', { name: 'Regelverlauf' })
@@ -696,8 +684,7 @@ describe('App', () => {
     await openMonthOverviewPage()
 
     await waitFor(() => {
-      expectSummaryMetric(screen.getByRole('region', { name: 'Monthly status' }), 'Allowance', '8')
-      expectSummaryMetric(screen.getByRole('region', { name: 'Monthly status' }), 'Remote Work', '1 / 8')
+      expectSummaryMetric(screen.getByRole('region', { name: 'Monthly status' }), 'Remote Work', '1 von 8')
       expectSummaryMetric(screen.getByRole('region', { name: 'Monthly status' }), 'Office', '1')
     })
 
@@ -738,9 +725,7 @@ describe('App', () => {
 
     const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
 
-    expectSummaryMetric(summaryPanel, 'Kontingent', '4')
-    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '5 / 4')
-    expect(within(summaryPanel).getByText('Über Limit')).toBeInTheDocument()
+    expectSummaryMetric(summaryPanel, 'Mobiles Arbeiten', '5 von 4')
     expect(summaryPanel.querySelector('.usage-panel')).toHaveAttribute('data-status', 'over-limit')
   })
 
@@ -786,9 +771,7 @@ describe('App', () => {
     const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
 
     expectSummaryMetric(summaryPanel, 'Arbeitstage', '0')
-    expectSummaryMetric(summaryPanel, 'Kontingent', '0')
     expectSummaryMetric(summaryPanel, 'Abwesenheit', '20')
-    expect(within(summaryPanel).getByText('Nicht anwendbar')).toBeInTheDocument()
   })
 
   it('renders every day of the selected month and marks booking days', async () => {
@@ -837,7 +820,7 @@ describe('App', () => {
     ).toBeInTheDocument()
 
     const aprilSummary = await screen.findByRole('region', { name: 'Monatsstand' })
-    expectSummaryMetric(aprilSummary, 'Büro', '1')
+    expectSummaryMetric(aprilSummary, 'Bürotage', '1')
 
     fireEvent.click(screen.getByRole('button', { name: 'Nächster Monat' }))
     fireEvent.click(screen.getByRole('button', { name: 'Nächster Monat' }))
@@ -850,8 +833,7 @@ describe('App', () => {
     ).toBeInTheDocument()
 
     const juneSummary = await screen.findByRole('region', { name: 'Monatsstand' })
-    expectSummaryMetric(juneSummary, 'Kontingent', '5')
-    expectSummaryMetric(juneSummary, 'Mobiles Arbeiten', '1 / 5')
+    expectSummaryMetric(juneSummary, 'Mobiles Arbeiten', '1 von 5')
   })
 
   it('only evaluates the visible month while the monthly overview is active', async () => {
@@ -910,11 +892,11 @@ describe('App', () => {
 
     const mayCard = within(yearOverview).getByRole('button', { name: 'Mai 2026 öffnen' })
     expect(within(mayCard).getByText('Normal')).toBeInTheDocument()
-    expect(within(mayCard).getByText('3 / 9')).toBeInTheDocument()
+    expect(within(mayCard).getByText('3 von 9')).toBeInTheDocument()
 
     const augustCard = within(yearOverview).getByRole('button', { name: 'August 2026 öffnen' })
     expect(within(augustCard).getByText('Warnung')).toBeInTheDocument()
-    expect(within(augustCard).getByText('5 / 5')).toBeInTheDocument()
+    expect(within(augustCard).getByText('5 von 5')).toBeInTheDocument()
     expect(within(augustCard).getByText('1')).toBeInTheDocument()
   })
 
@@ -943,7 +925,7 @@ describe('App', () => {
     ).toBeInTheDocument()
 
     const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
-    expectSummaryMetric(summaryPanel, 'Büro', '1')
+    expectSummaryMetric(summaryPanel, 'Bürotage', '1')
     expect(screen.getByRole('grid', { name: 'Monatsübersicht' })).toBeInTheDocument()
   })
 
@@ -968,9 +950,6 @@ describe('App', () => {
         name: 'Dezember 2025',
       }),
     ).toBeInTheDocument()
-
-    const summaryPanel = await screen.findByRole('region', { name: 'Monatsstand' })
-    expectSummaryMetric(summaryPanel, 'Kontingent', '8')
   })
 
   it('cycles a working day through the status cycle and reloads the persisted value', async () => {
