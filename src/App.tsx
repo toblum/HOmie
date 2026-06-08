@@ -44,6 +44,7 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
   const openDetailView = useHomieStore((state) => state.openDetailView)
   const updatePreferences = useHomieStore((state) => state.updatePreferences)
   const addPolicyHistoryEntry = useHomieStore((state) => state.addPolicyHistoryEntry)
+  const removePolicyHistoryEntry = useHomieStore((state) => state.removePolicyHistoryEntry)
   const restoreSnapshot = useHomieStore((state) => state.restoreSnapshot)
   const exportState = useHomieStore((state) => state.storage.exportState)
   const detailDate = useHomieStore((state) => state.detailDate)
@@ -223,6 +224,9 @@ function App({ storage = DEFAULT_STORAGE, today = DEFAULT_TODAY }: AppProps) {
           }}
           onAddPolicyHistoryEntry={(entry) => {
             void addPolicyHistoryEntry(entry)
+          }}
+          onRemovePolicyHistoryEntry={(effectiveMonth) => {
+            void removePolicyHistoryEntry(effectiveMonth)
           }}
           onRestoreSnapshot={restoreSnapshot}
           onExportJson={exportState}

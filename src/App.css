@@ -1025,27 +1025,22 @@
   color: var(--muted);
 }
 
-.settings-choice,
-.policy-history-item {
+.settings-choice {
   display: grid;
-  gap: 0.25rem;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.65rem;
   padding: 0.65rem 0.85rem;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.4);
   transition: all 0.1s ease;
+  cursor: pointer;
 }
 
 :root[data-theme='dark'] .settings-choice,
 :root[data-theme='dark'] .policy-history-item {
   background: rgba(0, 0, 0, 0.15);
-}
-
-.settings-choice {
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 0.65rem;
-  cursor: pointer;
 }
 
 .settings-choice:hover {
@@ -1055,6 +1050,40 @@
 
 :root[data-theme='dark'] .settings-choice:hover {
   background: rgba(255, 255, 255, 0.03);
+}
+
+.policy-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.4);
+  transition: all 0.1s ease;
+}
+
+.policy-history-item-info {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.policy-history-item-info strong {
+  font-family: var(--mono);
+  font-size: 1rem;
+  color: var(--text-h);
+}
+
+.policy-history-item-info span {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.policy-history-delete {
+  flex-shrink: 0;
+  font-size: 0.78rem;
 }
 
 .settings-field {
@@ -1088,6 +1117,16 @@
 .settings-choice:has(input:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+.settings-field-note {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 /* Local Backup Frame */
@@ -1168,6 +1207,13 @@
   border: 1px solid rgba(244, 63, 94, 0.2);
 }
 
+.policy-history-lead {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 1rem;
+}
+
 /* Policy history listing and dynamic forms */
 .policy-history-list {
   display: grid;
@@ -1175,17 +1221,6 @@
   list-style: none;
   margin: 0;
   padding: 0;
-}
-
-.policy-history-item strong {
-  font-family: var(--mono);
-  font-size: 1rem;
-  color: var(--text-h);
-}
-
-.policy-history-item span {
-  font-size: 0.82rem;
-  color: var(--muted);
 }
 
 .policy-form {

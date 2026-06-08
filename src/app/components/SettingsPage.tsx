@@ -18,6 +18,7 @@ interface SettingsPageProps {
   t: TranslationDictionary
   onUpdatePreferences: (preferences: { language?: 'de' | 'en'; theme?: 'light' | 'dark' | 'system'; warningThreshold?: number }) => void
   onAddPolicyHistoryEntry: (entry: PolicyHistoryEntry) => void
+  onRemovePolicyHistoryEntry: (effectiveMonth: EffectiveMonth) => void
   onRestoreSnapshot: (state: BrowserStorageState) => Promise<void>
   onExportJson: () => Promise<BrowserStorageState>
 }
@@ -29,6 +30,7 @@ function SettingsPage({
   t,
   onUpdatePreferences,
   onAddPolicyHistoryEntry,
+  onRemovePolicyHistoryEntry,
   onRestoreSnapshot,
   onExportJson,
 }: SettingsPageProps) {
@@ -178,6 +180,7 @@ function SettingsPage({
                 onUpdatePreferences({ warningThreshold: nextValue / 100 })
               }}
             />
+            <span className="settings-field-note">{t.warningThresholdDescription}</span>
           </label>
 
           <div className="backup-panel">
@@ -227,6 +230,8 @@ function SettingsPage({
           </div>
         </div>
 
+        <p className="policy-history-lead">{t.policyHistoryLead}</p>
+
         <div className="policy-history-page-body">
           <ol className="policy-history-list">
             {visiblePolicyHistory.map((entry) => {
@@ -240,11 +245,25 @@ function SettingsPage({
 
               return (
                 <li key={entry.effectiveMonth} className="policy-history-item">
-                  <strong>{entry.effectiveMonth}</strong>
-                  <span>
-                    {t.quota} {Math.round(entry.quota * 100)} % · {t.federalState} {entry.bundesland}
-                    {roundingLabel ? ` · ${t.roundingMode} ${roundingLabel}` : null}
+                  <span className="policy-history-item-info">
+                    <strong>{entry.effectiveMonth}</strong>
+                    <span>
+                      {t.quota} {Math.round(entry.quota * 100)} % · {t.federalState} {entry.bundesland}
+                      {roundingLabel ? ` · ${t.roundingMode} ${roundingLabel}` : null}
+                    </span>
                   </span>
+                  <button
+                    type="button"
+                    className="ghost-button policy-history-delete"
+                    aria-label={`${t.deleteEntry} ${entry.effectiveMonth}`}
+                    onClick={() => {
+                      if (window.confirm(t.deleteEntryConfirm({ effectiveMonth: entry.effectiveMonth }))) {
+                        onRemovePolicyHistoryEntry(entry.effectiveMonth)
+                      }
+                    }}
+                  >
+                    {t.deleteEntry}
+                  </button>
                 </li>
               )
             })}

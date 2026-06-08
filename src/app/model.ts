@@ -80,6 +80,7 @@ export type TranslationDictionary = {
   printReport: string
   personalSettings: string
   policyHistory: string
+  policyHistoryLead: string
   settings: string
   dateColumn: string
   dayKindColumn: string
@@ -91,6 +92,7 @@ export type TranslationDictionary = {
   themeDark: string
   themeSystem: string
   warningThreshold: string
+  warningThresholdDescription: string
   localBackup: string
   localBackupLead: string
   exportCsv: string
@@ -109,6 +111,8 @@ export type TranslationDictionary = {
   cancel: string
   save: string
   addEntry: string
+  deleteEntry: string
+  deleteEntryConfirm: (input: { effectiveMonth: string }) => string
   openMonth: (heading: string) => string
   calendarLegend: string
   calendarHint: string
@@ -162,6 +166,8 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     printReport: 'Bericht drucken',
     personalSettings: 'Persönliche Einstellungen',
     policyHistory: 'Regelverlauf',
+    policyHistoryLead:
+      'Jeder Eintrag definiert ab welchem Monat (Wirksamkeitsmonat) eine bestimmte Quote, ein Bundesland und eine Rundungsmethode gelten. Bei der Monatsauswertung wird der zeitlich nächstgelegene rückwirkende Eintrag angewendet.',
     settings: 'Einstellungen',
     dateColumn: 'Datum',
     dayKindColumn: 'Tagart',
@@ -173,6 +179,8 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     themeDark: 'Dunkel',
     themeSystem: 'System',
     warningThreshold: 'Warnschwelle',
+    warningThresholdDescription:
+      'Prozentwert der Kontingentnutzung, ab dem der Monatsstatus auf "Warnung" springt.',
     localBackup: 'Datensicherung',
     localBackupLead: 'Export und Restore des kompletten lokalen Zustands als JSON-Datei.',
     exportCsv: 'CSV exportieren',
@@ -191,6 +199,9 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     cancel: 'Abbrechen',
     save: 'Speichern',
     addEntry: 'Eintrag hinzufügen',
+    deleteEntry: 'Löschen',
+    deleteEntryConfirm: ({ effectiveMonth }) =>
+      `Eintrag für ${effectiveMonth} wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
     openMonth: (heading) => `${heading} öffnen`,
     calendarLegend: 'Farblegende',
     calendarHint: 'Linksklick wechselt den Status. Rechtsklick öffnet Details und Notiz.',
@@ -242,6 +253,8 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     printReport: 'Print report',
     personalSettings: 'Personal Settings',
     policyHistory: 'Policy History',
+    policyHistoryLead:
+      'Each entry defines from which month (effective month) a specific quota, federal state, and rounding method apply. When evaluating a month, the closest prior entry is used.',
     settings: 'Settings',
     dateColumn: 'Date',
     dayKindColumn: 'Day kind',
@@ -253,6 +266,8 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     themeDark: 'Dark',
     themeSystem: 'System',
     warningThreshold: 'Warning threshold',
+    warningThresholdDescription:
+      'Percentage of allowance usage at which the monthly status changes to "warning".',
     localBackup: 'Data backup',
     localBackupLead: 'Export and restore the complete local state as a JSON file.',
     exportCsv: 'Export CSV',
@@ -271,6 +286,9 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     cancel: 'Cancel',
     save: 'Save',
     addEntry: 'Add entry',
+    deleteEntry: 'Delete',
+    deleteEntryConfirm: ({ effectiveMonth }) =>
+      `Really delete entry for ${effectiveMonth}? This action cannot be undone.`,
     openMonth: (heading) => `Open ${heading}`,
     calendarLegend: 'Color legend',
     calendarHint: 'Left click cycles the status. Right click opens details and note.',
@@ -433,6 +451,7 @@ export interface HomieAppState {
   initialize: (input: { storage: BrowserStorage; today: IsoDate }) => Promise<void>
   updatePreferences: (preferences: Partial<PersonalPreferences>) => Promise<void>
   addPolicyHistoryEntry: (entry: PolicyHistoryEntry) => Promise<void>
+  removePolicyHistoryEntry: (effectiveMonth: EffectiveMonth) => Promise<void>
   restoreSnapshot: (state: BrowserStorageState) => Promise<void>
   navigateMonth: (offset: number) => void
   navigateYear: (offset: number) => void
@@ -535,6 +554,30 @@ export const useHomieStore = create<HomieAppState>((set, get) => ({
     }
 
     const nextPolicyHistory = normalizePolicyHistory([...snapshot.policyHistory, entry])
+
+    await storage.savePolicyHistory(nextPolicyHistory)
+
+    set({
+      snapshot: {
+        ...snapshot,
+        policyHistory: nextPolicyHistory,
+      },
+    })
+  },
+  async removePolicyHistoryEntry(effectiveMonth) {
+    const { snapshot, storage } = get()
+
+    if (!snapshot) {
+      return
+    }
+
+    const nextPolicyHistory = normalizePolicyHistory(
+      snapshot.policyHistory.filter((entry) => entry.effectiveMonth !== effectiveMonth),
+    )
+
+    if (nextPolicyHistory.length === snapshot.policyHistory.length) {
+      return
+    }
 
     await storage.savePolicyHistory(nextPolicyHistory)
 
