@@ -120,7 +120,7 @@ Contributions are welcome! Please:
 
 ## 📄 License
 
-This project is currently unlicensed. Please contact the repository owner for usage terms.
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
