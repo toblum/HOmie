@@ -12,7 +12,7 @@ HOmie helps you track how you allocate working days between remote work (*Mobile
 
 - **Monthly quota tracking** — configure a percentage-based remote-work quota and see your computed allowance per month
 - **Calendar classification** — automatic detection of weekends and public holidays per *Bundesland* (German federal state)
-- **Day status cycle** — quickly step through statuses: unset → remote work → office → vacation → sick → unset
+- **Day status cycle** — quickly step through statuses: unset → remote work → office → vacation → sick → other → unset
 - **Policy history** — change quota or federal state with an effective month; earlier months keep their previous rules
 - **Local-first** — all data stays in your browser (IndexedDB); no server, no account required
 - **Yearly & monthly views** — inspect compliance across a full year or drill into a single month
@@ -69,17 +69,22 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ```
 src/
-├── domain/          # Pure domain logic (calendar, policy, month evaluation)
-├── storage/         # IndexedDB persistence layer
-├── assets/          # Static assets
-├── App.tsx          # Root React component
-└── main.tsx         # Entry point
+├── app/
+│   └── components/   # React components (MonthOverview, YearOverview, SettingsPage, …)
+├── domain/           # Pure domain logic (calendar, policy, month evaluation)
+├── storage/          # IndexedDB persistence layer
+├── test/             # Test setup (vitest, fake-indexeddb)
+├── App.css           # Global styles
+├── App.test.tsx      # Component & integration tests
+├── App.tsx           # Root React component
+├── index.css         # CSS variables & theme
+└── main.tsx          # Entry point
 
 docs/
-├── adr/             # Architecture Decision Records
-└── PLAN.MD          # Development roadmap
+├── adr/              # Architecture Decision Records
+└── PLAN.MD           # Development roadmap
 
-tests/               # Playwright E2E tests
+tests/                # Playwright E2E tests
 ```
 
 ## 🗂 Key Concepts

@@ -137,13 +137,15 @@ Standardquote:
 
 Die Quote wird als **konfigurierbarer Wert** in den Einstellungen hinterlegt, standardmäßig 60.
 
-### Wichtige fachliche Annahme
+### Rundungsmethode
 
-Bei Monaten mit nicht ganzzahligem Ergebnis muss gerundet werden. Für die erste Version sollte die App **konservativ abrunden**:
+Bei Monaten mit nicht ganzzahligem Ergebnis muss gerundet werden. Die Rundungsmethode ist pro Policy-Eintrag konfigurierbar:
 
-`erlaubte_HO_Tage = floor(relevante_Arbeitstage * Quote)`
+- **Abrunden** (`Math.floor`): konservativ, vermeidet Überschreitungen
+- **Kaufmännisch** (`Math.round`): Standardeinstellung für neue Einträge
+- **Aufrunden** (`Math.ceil`): grosszügig, maximales Kontingent
 
-Das vermeidet ungewollte Überschreitungen. Falls im Team stattdessen kaufmännisches Runden verlangt wird, ist das als kleine Konfigurationsoption nachrüstbar.
+Die Rundungsmethode wird im Regelverlauf (Policy History) gespeichert und kann pro Wirksamkeitsmonat geändert werden.
 
 ---
 
@@ -189,12 +191,12 @@ Später sinnvoll, aber nicht zwingend für den ersten Schnitt:
 
 Alle App-Daten werden in der **IndexedDB des Browsers** des Nutzers gespeichert. Es gibt keinen Server, keine Cloud und kein Benutzerkonto.
 
-Datenbankname: `HOmie`
+Datenbankname: `homie-browser-storage`
 
 Stores:
+- `meta` — Schema-Version, Persönliche Einstellungen (Sprache, Theme, Warnschwelle), ausgeschlossene Tage
 - `entries` — Tageseinträge, Key: ISO-Datum (`YYYY-MM-DD`)
-- `policyHistory` — Regelverlauf (Quote und Bundesland), Key: Wirksamkeitsmonat
-- `preferences` — Persönliche Einstellungen (Sprache, Theme, Warnschwelle)
+- `policyHistory` — Regelverlauf (Quote, Bundesland, Rundungsmethode), Key: Wirksamkeitsmonat
 
 ### Portabilität
 
@@ -210,20 +212,23 @@ Ein JSON-Export ist ein gültiger Restore-Quell. Restore ersetzt den gesamten lo
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "preferences": {
     "language": "de",
     "theme": "system",
     "warningThreshold": 0.8
   },
   "policyHistory": [
-    { "effectiveMonth": "2026-01", "quota": 0.6, "federalState": "BY" }
+    { "effectiveMonth": "2026-01", "quota": 0.6, "federalState": "BY", "roundingMode": "round" }
   ],
-  "entries": {
-    "2026-05-04": { "type": "office" },
-    "2026-05-05": { "type": "remote-work" },
-    "2026-05-06": { "type": "absence", "reason": "vacation" }
-  }
+  "entries": [
+    { "date": "2026-05-04", "status": "office" },
+    { "date": "2026-05-05", "status": "remote-work" },
+    { "date": "2026-05-06", "status": "vacation" }
+  ],
+  "excludedDays": [
+    "2026-05-21"
+  ]
 }
 ```
 
@@ -244,7 +249,7 @@ Ein JSON-Export ist ein gültiger Restore-Quell. Restore ersetzt den gesamten lo
 
 - Vite baut einen vollständig statischen Asset-Bundle (`dist/`)
 - Deploy über GitHub Actions auf `gh-pages`-Branch
-- `base: '/'` in `vite.config.ts` (Root-Domain, kein Subpfad nötig)
+- `base: './'` in `vite.config.ts` (relative Pfade für statisches Hosting)
 
 ### 2. UI-Schicht
 
@@ -389,6 +394,9 @@ Bewusst **nicht** Teil der ersten Version:
 - Freigaben/Workflows
 - Mobile App
 - Exchange/Outlook-Integration
+- **Überschreibung** (einzelne Nicht-Arbeitstage als Arbeitstag markieren) — Storage und Domänenlogik vorbereitet, aber kein UI
+- **Ausschlusstage verwalten** — Storage und Berechnung vorhanden, aber keine UI-Pflege
+- **Notizen** zu Tageseinträgen — Datenmodell unterstützt Notizen, aber kein Eingabefeld im UI
 
 So bleibt die erste Version klein, nützlich und schnell lieferbar.
 
@@ -402,8 +410,9 @@ Risiko:
 - Quote wird im Team anders interpretiert
 
 Gegenmaßnahme:
-- Rundungsregel zentral kapseln
-- später leicht konfigurierbar machen
+- Rundungsmethode ist pro Policy-Eintrag konfigurierbar (Abrunden/Kaufmännisch/Aufrunden)
+- Standardeinstellung ist kaufmännisches Runden
+- Status: umgesetzt
 
 ### 2. Zu komplexe UI im ersten Wurf
 

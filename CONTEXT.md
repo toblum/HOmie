@@ -13,7 +13,7 @@ A calendar day that counts toward the monthly quota — i.e. a weekday that is n
 _Avoid_: effective workday, relevant workday, quota day, Werktag
 
 **Abwesenheit / Absence**:
-A user-recorded non-working day that removes a working day from quota usage. In HOmie v1, the absence types are Vacation and Sick.
+A user-recorded non-working day that removes a working day from quota usage. In HOmie, the absence types are Vacation, Sick, and Other.
 _Avoid_: Fehltag
 
 **Nicht-Arbeitstag / Non-Working Day**:
@@ -101,7 +101,7 @@ The single currently effective status of a day. Setting a new status replaces th
 _Avoid_: Statusstapel
 
 **Statuszyklus / Status Cycle**:
-The fixed quick-entry order used to step a day through its possible statuses: unset, remote work, office, vacation, sick, then back to unset.
+The fixed quick-entry order used to step a day through its possible statuses: unset, remote work, office, vacation, sick, other, then back to unset.
 _Avoid_: freie Reihenfolge
 
 **Leer / Unset**:
@@ -132,13 +132,17 @@ _Avoid_: Präsenz, Präsenztag
 A quota-relevant working day spent outside the office. It only counts against the monthly allowance when the day is a working day.
 _Avoid_: Home Office
 
+**Sonstiges / Other**:
+An absence type for non-working days that do not fall under Vacation or Sick. It counts as an absence in quota calculations.
+_Avoid_: Andere
+
 ## Flagged ambiguities
 
 - **Home Office** is retained as product/colloquial language only. The canonical tracked day status is **Mobiles Arbeiten** in German and **Remote Work** in English.
 - **Abwesenheit** and **Nicht-Arbeitstag** are different concepts. Absence is user-recorded; non-working day is calendar- or rule-derived.
 - **Quote** is the percentage; **Kontingent** is the month-specific computed day count.
 - **Planung** is future-facing language; **Buchung** is present/past-facing language for the same day fact.
-- **Überschreibung** converts one specific non-working day into a working day.
+- **Überschreibung** converts one specific non-working day into a working day. *(Defined domain concept; UI implementation pending.)*
 
 ## Example dialogue
 
