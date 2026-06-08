@@ -118,6 +118,7 @@ export type TranslationDictionary = {
   calendarHint: string
   otherAbsence: string
   settingsLead: string
+  footerGitHub: string
   roundingMode: string
   roundingModeFloor: string
   roundingModeRound: string
@@ -207,6 +208,7 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     calendarHint: 'Linksklick wechselt den Status. Rechtsklick öffnet Details und Notiz.',
     otherAbsence: 'Sonstiges',
     settingsLead: 'Persönliche Einstellungen, Regelverlauf und lokale Datensicherung an einem Ort.',
+    footerGitHub: 'HOmie auf GitHub',
     roundingMode: 'Rundungsmethode für Kontingent mobiles Arbeiten',
     roundingModeFloor: 'Abrunden',
     roundingModeRound: 'Kaufmännisch',
@@ -294,6 +296,7 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     calendarHint: 'Left click cycles the status. Right click opens details and note.',
     otherAbsence: 'Other',
     settingsLead: 'Personal settings, policy history, and local backup in one place.',
+    footerGitHub: 'HOmie on GitHub',
     roundingMode: 'Rounding method',
     roundingModeFloor: 'Floor',
     roundingModeRound: 'Round',

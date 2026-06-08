@@ -1629,3 +1629,34 @@
   }
 }
 
+/* ==========================================================================
+   FOOTER
+   ========================================================================== */
+
+.app-footer {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 0.75rem 1rem 1.5rem;
+  font-size: 0.75rem;
+}
+
+.app-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.app-footer a:hover {
+  color: var(--text-h);
+}
+
+.github-icon {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
