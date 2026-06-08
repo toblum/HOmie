@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import {
   STATUS_LABELS,
   STATUS_SEQUENCE,
@@ -30,13 +31,58 @@ function DetailDialog({
   onSetNote,
   onSave,
 }: DetailDialogProps) {
+  const dialogRef = useRef<HTMLElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (detailDate) {
+      previousFocusRef.current = document.activeElement as HTMLElement | null
+
+      requestAnimationFrame(() => {
+        const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        )
+        firstFocusable?.focus()
+      })
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus()
+      previousFocusRef.current = null
+    }
+  }, [detailDate])
+
   if (!detailDate) {
     return null
   }
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      onClose()
+      return
+    }
+
+    if (event.key !== 'Tab') return
+
+    const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    )
+
+    if (!focusable || focusable.length === 0) return
+
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
   return (
-    <div className="dialog-backdrop">
-      <section className="detail-dialog" role="dialog" aria-modal="true" aria-label={t.editDay}>
+    <div className="dialog-backdrop" onKeyDown={handleKeyDown}>
+      <section className="detail-dialog" role="dialog" aria-modal="true" aria-label={t.editDay} ref={dialogRef}>
         <div className="detail-dialog-head">
           <p className="eyebrow">{t.detailView}</p>
           <h2>{t.editDay}</h2>

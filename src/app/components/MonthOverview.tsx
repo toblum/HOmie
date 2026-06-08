@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef } from 'react'
 import type { MonthStatus } from '../../domain/monthStatus'
 import type { EffectiveMonth } from '../../domain/policyResolution'
 import type {
@@ -75,6 +76,92 @@ function MonthOverview({
     reportWindow.focus()
   }
 
+  const gridRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const grid = gridRef.current
+    if (!grid) return
+
+    const dayButtons = grid.querySelectorAll<HTMLButtonElement>('.day-button')
+    dayButtons.forEach((btn, i) => {
+      btn.tabIndex = i === 0 ? 0 : -1
+    })
+  }, [])
+
+  const handleGridKeyDown = useCallback((event: React.KeyboardEvent) => {
+    const grid = gridRef.current
+    if (!grid) return
+
+    const activeElement = document.activeElement
+    if (!activeElement || !grid.contains(activeElement)) return
+
+    const currentCell = activeElement.closest<HTMLElement>('[role="gridcell"]')
+    if (!currentCell) return
+
+    const allCells = Array.from(grid.querySelectorAll<HTMLElement>('[role="gridcell"]'))
+    const currentPos = allCells.indexOf(currentCell)
+    if (currentPos === -1) return
+
+    const COLUMNS = 7
+
+    const findInteractive = (from: number, direction: 1 | -1): number | null => {
+      let pos = from
+      while (pos >= 0 && pos < allCells.length) {
+        if (allCells[pos].querySelector('.day-button')) return pos
+        pos += direction
+      }
+      return null
+    }
+
+    let targetPos: number | null = null
+
+    switch (event.key) {
+      case 'ArrowRight':
+        targetPos = findInteractive(currentPos + 1, 1)
+        break
+      case 'ArrowLeft':
+        targetPos = findInteractive(currentPos - 1, -1)
+        break
+      case 'ArrowDown': {
+        const next = findInteractive(currentPos + COLUMNS, 1)
+        if (next !== null && Math.floor(next / COLUMNS) > Math.floor(currentPos / COLUMNS)) {
+          targetPos = next
+        }
+        break
+      }
+      case 'ArrowUp': {
+        const prev = findInteractive(currentPos - COLUMNS, -1)
+        if (prev !== null && Math.floor(prev / COLUMNS) < Math.floor(currentPos / COLUMNS)) {
+          targetPos = prev
+        }
+        break
+      }
+      case 'Home':
+        targetPos = findInteractive(0, 1)
+        break
+      case 'End':
+        targetPos = findInteractive(allCells.length - 1, -1)
+        break
+      default:
+        return
+    }
+
+    if (targetPos === null) return
+
+    const targetButton = allCells[targetPos].querySelector<HTMLButtonElement>('.day-button')
+    if (!targetButton) return
+
+    event.preventDefault()
+
+    allCells.forEach((cell) => {
+      const btn = cell.querySelector<HTMLButtonElement>('.day-button')
+      if (btn) btn.tabIndex = -1
+    })
+
+    targetButton.tabIndex = 0
+    targetButton.focus()
+  }, [])
+
   return (
     <>
       <section className="calendar-panel" aria-label={t.monthView}>
@@ -101,7 +188,7 @@ function MonthOverview({
           ))}
         </div>
 
-        <div className="calendar-grid" role="grid" aria-label={t.monthGrid}>
+        <div className="calendar-grid" role="grid" aria-label={t.monthGrid} ref={gridRef} onKeyDown={handleGridKeyDown}>
           {Array.from({ length: calendar.leadingBlankCount }, (_, index) => (
             <div key={`blank-${index}`} className="calendar-blank" aria-hidden="true" />
           ))}

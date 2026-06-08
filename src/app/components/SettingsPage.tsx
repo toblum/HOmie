@@ -270,7 +270,6 @@ function SettingsPage({
           </ol>
 
           <form
-            key={`${latestPolicyEntry?.effectiveMonth ?? '1900-01'}-${latestPolicyEntry?.quota ?? 60}-${latestPolicyEntry?.bundesland ?? 'SL'}`}
             className="policy-form"
             onSubmit={(event) => {
               event.preventDefault()
