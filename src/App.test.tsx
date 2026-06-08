@@ -221,7 +221,7 @@ describe('App', () => {
       const exportedState = JSON.parse(await (blob as Blob).text())
 
       expect(exportedState).toEqual({
-        schemaVersion: 1,
+        schemaVersion: 2,
         preferences: { language: 'de', theme: 'system', warningThreshold: 0.75 },
         policyHistory: [
           { effectiveMonth: '1900-01', quota: 0.4, bundesland: 'BY' },
@@ -326,7 +326,7 @@ describe('App', () => {
     const restoreFile = new File(
       [
         JSON.stringify({
-          schemaVersion: 1,
+          schemaVersion: 2,
           preferences: { language: 'en', theme: 'dark', warningThreshold: 0.6 },
           policyHistory: [
             { effectiveMonth: '1900-01', quota: 0.25, bundesland: 'NW' },
@@ -385,7 +385,7 @@ describe('App', () => {
     const incompatibleFile = new File(
       [
         JSON.stringify({
-          schemaVersion: 2,
+          schemaVersion: 3,
           preferences: { language: 'en', theme: 'dark', warningThreshold: 0.6 },
           policyHistory: [{ effectiveMonth: '1900-01', quota: 0.25, bundesland: 'NW' }],
           entries: [{ date: '2026-05-13', status: 'office' }],
@@ -407,7 +407,7 @@ describe('App', () => {
 
     await waitFor(async () => {
       expect(confirmSpy).toHaveBeenCalledTimes(1)
-      expect(screen.getByRole('alert')).toHaveTextContent(/schema version 2/i)
+      expect(screen.getByRole('alert')).toHaveTextContent(/incompatible with expected version 2/i)
       expect(screen.getByRole('region', { name: 'Regelverlauf' })).toBeInTheDocument()
 
       await openMonthOverviewPage()
@@ -520,7 +520,7 @@ describe('App', () => {
       expect(within(screen.getByRole('gridcell', { name: /13 Mittwoch/i })).queryByText('Leer')).not.toBeInTheDocument()
 
       await expect(storage.load()).resolves.toEqual({
-        schemaVersion: 1,
+        schemaVersion: 2,
         preferences: { language: 'de', theme: 'system', warningThreshold: 0.75 },
         policyHistory: [
           { effectiveMonth: '1900-01', quota: 0.4, bundesland: 'BY' },
@@ -641,7 +641,7 @@ describe('App', () => {
 
     await waitFor(() => {
       expectSummaryMetric(screen.getByRole('region', { name: 'Monatsstand' }), 'Kontingent', '4')
-      expect(screen.getByText('Quote 20 % · Bundesland BY')).toBeInTheDocument()
+      expect(screen.getByText((content) => content.includes('Quote 20 %') && content.includes('Bundesland BY'))).toBeInTheDocument()
     })
 
     await openSettingsPage()
@@ -657,7 +657,7 @@ describe('App', () => {
     const reloadedPolicyHistory = await screen.findByRole('region', { name: 'Regelverlauf' })
 
     await waitFor(() => {
-      expect(within(reloadedPolicyHistory).getByText('Quote 20 % · Bundesland BY')).toBeInTheDocument()
+      expect(within(reloadedPolicyHistory).getByText((content) => content.includes('Quote 20 %') && content.includes('Bundesland BY'))).toBeInTheDocument()
       expect(within(reloadedPolicyHistory).getByText('2025-02')).toBeInTheDocument()
     })
   })

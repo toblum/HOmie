@@ -25,6 +25,15 @@ export type OriginalNonWorkingReason = 'public-holiday' | 'excluded-day' | 'week
 export type IsoDate = string
 
 /**
+ * Rounding method for allowance calculation.
+ * - floor: abrunden
+ * - round: kaufmännisches Runden (default)
+ * - ceil: aufrunden
+ */
+
+export type RoundingMode = 'floor' | 'round' | 'ceil'
+
+/**
  * Two-letter Bundesland code used by date-holidays, e.g. "BY", "NW", "BE".
  */
 export type Bundesland =

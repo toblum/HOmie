@@ -1,7 +1,7 @@
 import { openDB, type DBSchema } from 'idb'
 import type { DayEntry } from '../domain/monthEvaluation'
 import type { PolicyHistoryEntry } from '../domain/policyResolution'
-import type { IsoDate } from '../domain/types'
+import type { IsoDate, RoundingMode } from '../domain/types'
 
 type DayEntryStatus = DayEntry['status']
 type EffectiveMonth = PolicyHistoryEntry['effectiveMonth']
@@ -58,10 +58,11 @@ interface BrowserStorageDb extends DBSchema {
 }
 
 const DEFAULT_DB_NAME = 'homie-browser-storage'
-const DEFAULT_SCHEMA_VERSION = 1
+const DEFAULT_SCHEMA_VERSION = 2
 const DAY_ENTRY_STATUSES = ['remote-work', 'office', 'vacation', 'sick', 'other'] as const
 const LANGUAGES = ['de', 'en'] as const
 const THEMES = ['light', 'dark', 'system'] as const
+export const ROUNDING_MODES: readonly RoundingMode[] = ['floor', 'round', 'ceil'] as const
 export const BUNDESLAENDER = [
   'BB',
   'BE',
@@ -160,10 +161,20 @@ function validatePolicyHistory(value: unknown): PolicyHistoryEntry[] {
       throw new BrowserStorageError('Stored policy history is corrupt')
     }
 
+    const roundingMode =
+      entry.roundingMode !== undefined
+        ? (entry.roundingMode as RoundingMode)
+        : undefined
+
+    if (roundingMode !== undefined && !ROUNDING_MODES.includes(roundingMode)) {
+      throw new BrowserStorageError('Stored policy history is corrupt')
+    }
+
     return {
       effectiveMonth: entry.effectiveMonth as EffectiveMonth,
       quota: entry.quota,
       bundesland: entry.bundesland as Bundesland,
+      ...(roundingMode !== undefined ? { roundingMode } : {}),
     }
   })
 }
@@ -394,6 +405,14 @@ async function loadStateFromDatabase(
 
     return normalizedState
   })
+}
+
+export function migrateV1ToV2(input: {
+  fromVersion: number
+  toVersion: number
+  state: BrowserStorageState
+}): BrowserStorageState {
+  return input.state
 }
 
 export function createBrowserStorage(

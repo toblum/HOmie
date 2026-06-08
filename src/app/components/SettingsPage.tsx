@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent } from 'react'
-import { BUNDESLAENDER } from '../../storage/browserStorage'
+import { BUNDESLAENDER, ROUNDING_MODES } from '../../storage/browserStorage'
 import type { BrowserStorageState } from '../../storage/browserStorage'
 import type { EffectiveMonth, PolicyHistoryEntry } from '../../domain/policyResolution'
 import {
@@ -229,14 +229,25 @@ function SettingsPage({
 
         <div className="policy-history-page-body">
           <ol className="policy-history-list">
-            {visiblePolicyHistory.map((entry) => (
-              <li key={entry.effectiveMonth} className="policy-history-item">
-                <strong>{entry.effectiveMonth}</strong>
-                <span>
-                  {t.quota} {Math.round(entry.quota * 100)} % · {t.federalState} {entry.bundesland}
-                </span>
-              </li>
-            ))}
+            {visiblePolicyHistory.map((entry) => {
+              const roundingLabel = entry.roundingMode
+                ? entry.roundingMode === 'floor'
+                  ? t.roundingModeFloor
+                  : entry.roundingMode === 'round'
+                    ? t.roundingModeRound
+                    : t.roundingModeCeil
+                : null
+
+              return (
+                <li key={entry.effectiveMonth} className="policy-history-item">
+                  <strong>{entry.effectiveMonth}</strong>
+                  <span>
+                    {t.quota} {Math.round(entry.quota * 100)} % · {t.federalState} {entry.bundesland}
+                    {roundingLabel ? ` · ${t.roundingMode} ${roundingLabel}` : null}
+                  </span>
+                </li>
+              )
+            })}
           </ol>
 
           <form
@@ -252,6 +263,7 @@ function SettingsPage({
               const formData = new FormData(event.currentTarget)
               const quotaValue = Number(formData.get('quota'))
               const bundeslandValue = formData.get('bundesland')
+              const roundingModeValue = formData.get('roundingMode')
               const effectiveMonthValue = formData.get('effectiveMonth')
 
               if (
@@ -265,10 +277,15 @@ function SettingsPage({
                 return
               }
 
+              const roundingMode = roundingModeValue === 'floor' || roundingModeValue === 'round' || roundingModeValue === 'ceil'
+                ? roundingModeValue
+                : 'round'
+
               onAddPolicyHistoryEntry({
                 effectiveMonth: effectiveMonthValue as EffectiveMonth,
                 quota: quotaValue / 100,
                 bundesland: bundeslandValue as PolicyHistoryEntry['bundesland'],
+                roundingMode,
               })
             }}
           >
@@ -292,6 +309,17 @@ function SettingsPage({
                 {BUNDESLAENDER.map((bundesland: (typeof BUNDESLAENDER)[number]) => (
                   <option key={bundesland} value={bundesland}>
                     {bundeslandLabels[bundesland]} ({bundesland})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="settings-field">
+              <span>{t.roundingMode}</span>
+              <select name="roundingMode" aria-label={t.roundingMode} defaultValue={latestPolicyEntry?.roundingMode ?? 'round'}>
+                {ROUNDING_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {mode === 'floor' ? t.roundingModeFloor : mode === 'round' ? t.roundingModeRound : t.roundingModeCeil}
                   </option>
                 ))}
               </select>

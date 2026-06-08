@@ -1,4 +1,4 @@
-import type { DayClassification, IsoDate } from './types'
+import type { DayClassification, IsoDate, RoundingMode } from './types'
 
 export type DayEntryStatus = 'remote-work' | 'office' | 'vacation' | 'sick' | 'other'
 
@@ -14,6 +14,7 @@ export interface EvaluateMonthInput {
   classifications: DayClassification[]
   entries: DayEntry[]
   quota: number
+  roundingMode?: RoundingMode
   today: IsoDate
 }
 
@@ -95,7 +96,8 @@ export function evaluateMonth(input: EvaluateMonthInput): MonthEvaluation {
     }
   }
 
-  const allowance = Math.floor(workingDays * input.quota)
+  const roundingFn = input.roundingMode === 'ceil' ? Math.ceil : input.roundingMode === 'round' ? Math.round : Math.floor
+  const allowance = roundingFn(workingDays * input.quota)
   const absenceDays = vacationDays + sickDays + otherAbsenceDays
 
   return {

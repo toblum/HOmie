@@ -16,6 +16,7 @@ import type { DayClassification, IsoDate } from '../domain/types'
 import {
   createBrowserStorage,
   BUNDESLAENDER,
+  migrateV1ToV2,
   type BrowserStorage,
   type BrowserStorageState,
   type PersonalPreferences,
@@ -34,6 +35,7 @@ export const DEFAULT_POLICY_ENTRY: PolicyHistoryEntry = {
   effectiveMonth: '1900-01',
   quota: 0.6,
   bundesland: 'SL',
+  roundingMode: 'round',
 }
 const LOCALE_BY_LANGUAGE: Record<PersonalPreferences['language'], string> = {
   de: 'de-DE',
@@ -112,6 +114,10 @@ export type TranslationDictionary = {
   calendarHint: string
   otherAbsence: string
   settingsLead: string
+  roundingMode: string
+  roundingModeFloor: string
+  roundingModeRound: string
+  roundingModeCeil: string
 }
 
 export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDictionary> = {
@@ -190,6 +196,10 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     calendarHint: 'Linksklick wechselt den Status. Rechtsklick öffnet Details und Notiz.',
     otherAbsence: 'Sonstiges',
     settingsLead: 'Persönliche Einstellungen, Regelverlauf und lokale Datensicherung an einem Ort.',
+    roundingMode: 'Rundungsmethode für Kontingent mobiles Arbeiten',
+    roundingModeFloor: 'Abrunden',
+    roundingModeRound: 'Kaufmännisch',
+    roundingModeCeil: 'Aufrunden',
   },
   en: {
     monthOverview: 'Monthly Overview',
@@ -266,6 +276,10 @@ export const TRANSLATIONS: Record<PersonalPreferences['language'], TranslationDi
     calendarHint: 'Left click cycles the status. Right click opens details and note.',
     otherAbsence: 'Other',
     settingsLead: 'Personal settings, policy history, and local backup in one place.',
+    roundingMode: 'Rounding method',
+    roundingModeFloor: 'Floor',
+    roundingModeRound: 'Round',
+    roundingModeCeil: 'Ceil',
   },
 }
 
@@ -368,7 +382,7 @@ export const MONTH_STATUS_LABELS: Record<PersonalPreferences['language'], Record
   },
 }
 
-export const DEFAULT_STORAGE = createBrowserStorage()
+export const DEFAULT_STORAGE = createBrowserStorage({ schemaVersion: 2, migrate: migrateV1ToV2 })
 
 export interface CalendarDayViewModel {
   classification: DayClassification
@@ -435,7 +449,7 @@ export interface HomieAppState {
 }
 
 export const useHomieStore = create<HomieAppState>((set, get) => ({
-  storage: createBrowserStorage(),
+  storage: createBrowserStorage({ schemaVersion: 2, migrate: migrateV1ToV2 }),
   today: DEFAULT_TODAY,
   selectedMonth: toMonthKey(DEFAULT_TODAY),
   selectedYear: Number(toMonthKey(DEFAULT_TODAY).slice(0, 4)),
@@ -812,6 +826,7 @@ export function buildCalendarMonthViewModel(
     classifications,
     entries: snapshot.entries,
     quota: policy.quota,
+    roundingMode: policy.roundingMode,
     today,
   })
   const entryByDate = new Map(snapshot.entries.map((entry) => [entry.date, entry]))

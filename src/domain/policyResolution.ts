@@ -1,4 +1,4 @@
-import type { Bundesland } from './types'
+import type { Bundesland, RoundingMode } from './types'
 
 export type EffectiveMonth = `${number}-${number}${number}`
 
@@ -6,6 +6,7 @@ export interface PolicyHistoryEntry {
   effectiveMonth: EffectiveMonth
   quota: number
   bundesland: Bundesland
+  roundingMode?: RoundingMode
 }
 
 export interface ResolvePolicyForMonthInput {

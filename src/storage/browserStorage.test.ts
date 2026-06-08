@@ -50,7 +50,7 @@ describe('createBrowserStorage', () => {
     const storage = createBrowserStorage({ dbName: uniqueDatabaseName() })
 
     await expect(storage.load()).resolves.toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       entries: [],
       policyHistory: [],
       preferences: {
@@ -150,7 +150,7 @@ describe('createBrowserStorage', () => {
     await storage.saveExcludedDays(['2026-05-21'])
 
     await expect(storage.exportState()).resolves.toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       entries: [{ date: '2026-05-05', status: 'vacation', note: 'Trip' }],
       policyHistory: [{ effectiveMonth: '2026-01', quota: 0.6, bundesland: 'BY' }],
       preferences: {
@@ -171,7 +171,7 @@ describe('createBrowserStorage', () => {
     await storage.saveExcludedDays(['2026-05-21'])
 
     await storage.restoreState({
-      schemaVersion: 1,
+      schemaVersion: 2,
       entries: [{ date: '2026-05-12', status: 'remote-work', note: 'New entry' }],
       policyHistory: [{ effectiveMonth: '2026-03', quota: 0.4, bundesland: 'NW' }],
       preferences: {
@@ -183,7 +183,7 @@ describe('createBrowserStorage', () => {
     })
 
     await expect(storage.load()).resolves.toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       entries: [{ date: '2026-05-12', status: 'remote-work', note: 'New entry' }],
       policyHistory: [{ effectiveMonth: '2026-03', quota: 0.4, bundesland: 'NW' }],
       preferences: {
