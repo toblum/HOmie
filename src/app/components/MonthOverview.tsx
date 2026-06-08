@@ -217,7 +217,7 @@ function MonthOverview({
                     <span className="day-number">{getDayNumber(day.classification.date)}</span>
                     <span className="day-weekday">{formatWeekday(day.classification.date, language)}</span>
                   </span>
-                  {day.entry ? <strong className="day-status">{day.statusLabel}</strong> : null}
+                  {day.entry ? <strong key={day.entry.status} className="day-status">{day.statusLabel}</strong> : null}
                   {day.entry?.note ? <span className="day-note">{day.entry.note}</span> : null}
                 </button>
               ) : (
