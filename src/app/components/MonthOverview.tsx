@@ -107,7 +107,7 @@ function MonthOverview({
     const findInteractive = (from: number, direction: 1 | -1): number | null => {
       let pos = from
       while (pos >= 0 && pos < allCells.length) {
-        if (allCells[pos].querySelector('.day-button')) return pos
+        if (allCells[pos]!.querySelector('.day-button')) return pos
         pos += direction
       }
       return null
@@ -148,7 +148,7 @@ function MonthOverview({
 
     if (targetPos === null) return
 
-    const targetButton = allCells[targetPos].querySelector<HTMLButtonElement>('.day-button')
+    const targetButton = allCells[targetPos]?.querySelector<HTMLButtonElement>('.day-button')
     if (!targetButton) return
 
     event.preventDefault()

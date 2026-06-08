@@ -869,7 +869,7 @@ export function buildCalendarMonthViewModel(
     classifications,
     entries: snapshot.entries,
     quota: policy.quota,
-    roundingMode: policy.roundingMode,
+    ...(policy.roundingMode !== undefined ? { roundingMode: policy.roundingMode } : {}),
     today,
   })
   const entryByDate = new Map(snapshot.entries.map((entry) => [entry.date, entry]))
